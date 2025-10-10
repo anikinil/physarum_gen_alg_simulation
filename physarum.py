@@ -27,9 +27,9 @@ class Cell:
         return Cell(self.x, self.y, self.energy, self.energy_dir)
 
 
-NUM_STEPS = 90
+NUM_STEPS = 200
 START_CELLS = [Cell(20, 15, energy=60)]
-FOOD = [Food(25, 20, 10), Food(35, 25, 10), Food(10, 30, 10), Food(40, 10, 10), Food(5, 5, 10)]
+FOOD = [Food(23, 18, 80), Food(35, 25, 80), Food(10, 30, 80), Food(40, 10, 80), Food(5, 5, 80)]
 
 
 TRANSFERABLE_FOOD_ENERGY = 2

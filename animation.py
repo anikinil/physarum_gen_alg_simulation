@@ -50,7 +50,7 @@ def animate(world):
             draw_world(screen, world)
             pygame.display.flip()
             clock.tick(FPS*3)
-
+            
         count += 1
         if count < world.steps:
             pygame.display.set_caption(f"Physarum - Step {count}/{world.steps}")
@@ -112,6 +112,5 @@ if __name__ == "__main__":
         rules = pickle.load(f)
 
     world = World(START_CELLS, FOOD, rules, NUM_STEPS)
-    # world = World(cells=start_cells, food=food, steps=steps)
 
     animate(world)
