@@ -7,26 +7,26 @@ from copy import deepcopy
 from animation import animate
 
 
-NUM_GENS = 100
-NUM_INDIVIDUALS = 100
+NUM_GENS = 500
+NUM_INDIVIDUALS = 60
 # FITTEST_RATE = 0.2
 # NUM_FITTEST = round(NUM_INDIVIDUALS * FITTEST_RATE)
 
-MUTATED_RATE = 0.8
+MUTATED_RATE = 0.7
 NUM_MUTATED = round(NUM_INDIVIDUALS//2 * MUTATED_RATE)
 
-MUTATION_RATE = 0.9
+MUTATION_RATE = 0.5
 NUM_MUTATIONS = round(NUM_STATES * MUTATION_RATE)
 
-NUM_STEPS = 200
+NUM_STEPS = 90
 
 DIRECTIONS = ['0', 'l', 'r', 'u', 'd']
 
 # START_CELLS = [Cell(18, 25, energy=40)]
 # FOOD = [Food(17, 15, 50)]
     
-START_CELLS = [Cell(20, 15, energy=40)]
-FOOD = [Food(40, 25, 50)]
+START_CELLS = [Cell(20, 15, energy=60)]
+FOOD = [Food(35, 25, 100)]
 
 
 def run():
@@ -43,13 +43,12 @@ def run():
         for i, world in enumerate(worlds):
             # print(f"  Individual {i+1}")
             last_world_state = world.run()
-            # fitness = food_proximity_fitness(last_world_state)
-            fitness = total_energy_fitness(last_world_state) - total_cells_fitness(last_world_state) + area_fitness(last_world_state)
-            # print(f"    Fitness: {round(fitness, 3)}")
+            fitness = total_cells_fitness(last_world_state)
+            print(f"    Fitness: {round(fitness, 3)}")
             world.fitness = fitness
 
         fittest = get_k_fittest(worlds, NUM_INDIVIDUALS//2+2)
-        average_fitness = sum(fittest[i].fitness for i in range(len(fittest))) / len(fittest)
+        average_fitness = round(sum(worlds[i].fitness for i in range(len(fittest))) / len(fittest), 3)
         fitness_history.append(average_fitness)
         print(f"      Average fitness: {average_fitness}")
         save_rules(fittest[0].rules)
@@ -59,6 +58,7 @@ def run():
             best_world = World(cells=deepcopy(START_CELLS), food=deepcopy(FOOD), rules=fittest[0].rules, steps=NUM_STEPS)
             animate(best_world)
             plot_fitness_history(fitness_history)
+            
 
 def get_k_fittest(worlds, k):
     worlds.sort(key=lambda w: w.fitness, reverse=True)
@@ -69,14 +69,23 @@ def total_cells_fitness(last_world_state):
 
 def total_energy_fitness(last_world_state):
     return sum([cell.energy for cell in last_world_state.cells])
-    
-def area_fitness(last_world_state):
 
+def aspect_ratio_fitness(last_world_state):
     min_x = min(cell.x for cell in last_world_state.cells)
     max_x = max(cell.x for cell in last_world_state.cells)
     min_y = min(cell.y for cell in last_world_state.cells)
     max_y = max(cell.y for cell in last_world_state.cells)
-    return (max_x - min_x) * (max_y - min_y)
+    return abs(abs(max_x - min_x) - abs(max_y - min_y))
+
+def center_of_mass_fitness(last_world_state):
+    cells = last_world_state.cells
+    n = len(cells)
+    sum_x = sum(cell.x for cell in cells)
+    sum_y = sum(cell.y for cell in cells)
+    avg_x = sum_x / n
+    avg_y = sum_y / n
+    max_dist_sq = max((cell.x - avg_x) ** 2 + (cell.y - avg_y) ** 2 for cell in cells)
+    return -math.sqrt(max_dist_sq)
 
 def food_proximity_fitness(last_world_state):
     min_dists = []
@@ -88,6 +97,24 @@ def food_proximity_fitness(last_world_state):
             dists.append(math.sqrt((cell.x - food.x)**2+(cell.y - food.y)**2))
         min_dists.append(min(dists))
     return -min(min_dists)
+
+def custom_fitness(last_world_state):
+
+    cells = last_world_state.cells
+    if not cells:
+        return 0
+
+    # Average x position of cells
+    avg_x_cells = sum(cell.x for cell in cells) / len(cells)
+
+    # Average x position weighted by energy
+    total_energy = sum(cell.energy for cell in cells)
+    if total_energy == 0:
+        avg_y_energy = 0
+    else:
+        avg_y_energy = sum(cell.y * cell.energy for cell in cells) / total_energy
+
+    return abs(avg_x_cells - avg_y_energy)
 
 def crossover(fittest_worlds):
 
