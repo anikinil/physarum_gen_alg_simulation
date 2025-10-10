@@ -2,7 +2,7 @@ import sys
 import pickle
 import pygame
 
-from physarum import World, Food, Cell
+from physarum import World, NUM_STEPS, START_CELLS, FOOD
 
 CELL_SIZE = 40
 
@@ -14,11 +14,6 @@ COL_GRID = (50, 50, 50)
 FPS = 10
 
 FONT_SIZE = 30
-
-
-START_CELLS = [Cell(20, 15, energy=60)]
-FOOD = [Food(30, 20, 10), Food(35, 25, 10), Food(10, 30, 10), Food(40, 10, 10), Food(12, 12, 10)]
-NUM_STEPS = 90
 
 def animate(world):
 

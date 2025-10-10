@@ -10,7 +10,29 @@ LEN_STATE_CODE = 2*4
 MIN_ENERGY = 1
 MAX_ENERGY_PORTION = 3
 
-transferABLE_FOOD_ENERGY = 2
+class Food:
+    def __init__(self, x, y, energy=5):
+        self.x = x
+        self.y = y
+        self.energy = energy
+        
+
+class Cell:
+    def __init__(self, x, y, energy, energy_dir='0'):
+        self.x = x
+        self.y = y
+        self.energy = energy
+        self.energy_dir = energy_dir
+    def copy(self):
+        return Cell(self.x, self.y, self.energy, self.energy_dir)
+
+
+NUM_STEPS = 90
+START_CELLS = [Cell(20, 15, energy=60)]
+FOOD = [Food(25, 20, 10), Food(35, 25, 10), Food(10, 30, 10), Food(40, 10, 10), Food(5, 5, 10)]
+
+
+TRANSFERABLE_FOOD_ENERGY = 2
 
 def encode_state(neighbors, energy):
     idx = 0
@@ -40,26 +62,6 @@ def get_randomized_rules():
     weights_energy = [1, 1, 1 ,1, 1] # 0, l, r, u, d
     weights_total = [w1 * w2 for w1 in weights_growth for w2 in weights_energy]
     return random.choices(range(NUM_ACTIONS), weights=weights_total, k=NUM_STATES)
-
-
-class Food:
-    
-    def __init__(self, x, y, energy=5):
-        self.x = x
-        self.y = y
-        self.energy = energy
-        
-
-class Cell:
-
-    def __init__(self, x, y, energy, energy_dir='0'):
-        self.x = x
-        self.y = y
-        self.energy = energy
-        self.energy_dir = energy_dir
-
-    def copy(self):
-        return Cell(self.x, self.y, self.energy, self.energy_dir)
 
 
 class World:
@@ -165,7 +167,7 @@ class World:
                 if abs(cell.x - food.x) <= 1 and abs(cell.y - food.y) <= 1:
                     for f in updated_food:
                         if f.x == food.x and f.y == food.y:
-                            f.energy -= min(transferABLE_FOOD_ENERGY, f.energy)
+                            f.energy -= min(TRANSFERABLE_FOOD_ENERGY, f.energy)
                             if f.energy <= 0:
                                 updated_food.remove(f)
                             break

@@ -1,4 +1,4 @@
-from physarum import World, Food, Cell, NUM_STATES, NUM_ACTIONS
+from physarum import World, NUM_STATES, NUM_ACTIONS, NUM_STEPS, FOOD, START_CELLS
 import math
 import random
 import pickle
@@ -8,8 +8,8 @@ from animation import animate
 
 
 NUM_GENS = 200
-NUM_INDIVIDUALS = 8
-FITTEST_RATE = 0.2
+NUM_INDIVIDUALS = 30
+FITTEST_RATE = 0.8
 NUM_FITTEST = round(NUM_INDIVIDUALS * FITTEST_RATE)
 
 MUTATED_RATE = 0.7 * FITTEST_RATE
@@ -17,17 +17,6 @@ NUM_MUTATED = round(NUM_INDIVIDUALS * MUTATED_RATE)
 
 MUTATION_RATE = 0.5
 NUM_MUTATIONS = round(NUM_STATES * MUTATION_RATE)
-
-NUM_STEPS = 90
-
-DIRECTIONS = ['0', 'l', 'r', 'u', 'd']
-
-# START_CELLS = [Cell(18, 25, energy=40)]
-# FOOD = [Food(17, 15, 50)]
-    
-START_CELLS = [Cell(20, 15, energy=60)]
-FOOD = [Food(30, 20, 10), Food(35, 25, 10), Food(10, 30, 10), Food(40, 10, 10), Food(5, 5, 10)]
-
 
 def run():
 
@@ -44,7 +33,7 @@ def run():
         for i, world in enumerate(worlds):
             last_world_state = world.run()
             fitness = total_cells_fitness(last_world_state)
-            print(f"    Ind {i+1}: Fitness: {round(fitness, 3)}")
+            print(f"    Ind {i+1} - fitness: {round(fitness, 3)}")
             world.fitness = fitness
 
         sorted = sort_by_fitness(worlds)
@@ -147,11 +136,11 @@ def crossover(sorted_worlds):
         crossed.append(child1)
         crossed.append(child2)
 
-    return mutate(crossed + fittest[:min(NUM_FITTEST, NUM_INDIVIDUALS - NUM_FITTEST)] + least_fit[:min(NUM_INDIVIDUALS - NUM_FITTEST - NUM_FITTEST, len(least_fit))])
+    return mutate(crossed) + fittest[:min(NUM_FITTEST, NUM_INDIVIDUALS - NUM_FITTEST)] + mutate(least_fit[:min(NUM_INDIVIDUALS - NUM_FITTEST - NUM_FITTEST, 0)])
 
 def mutate(worlds):
 
-    mutated_idx = random.sample(range(len(worlds)), NUM_MUTATED) # select individuals to mutate
+    mutated_idx = random.sample(range(len(worlds)), min(NUM_MUTATED, len(worlds))) # select individuals to mutate
 
     for i in mutated_idx:
         world = worlds[i]
