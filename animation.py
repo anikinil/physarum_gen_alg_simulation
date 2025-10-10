@@ -84,11 +84,12 @@ def draw_cell(screen, cell):
         pygame.draw.rect(screen, color, rect)
     except:
         pygame.draw.rect(screen, 'red', rect)
-    # pygame.draw.rect(SCREEN, YELLOW, energy, 3)
-    # font = pygame.font.SysFont(None, FONT_SIZE)
-    # text = font.render(str(round(cell.energy, 2)), True, "blue")
-    # screen.blit(text, (cell.x * CELL_SIZE + 5, cell.y * CELL_SIZE + 5))
     
+    if cell.energy >= 20:
+        font = pygame.font.SysFont(None, FONT_SIZE)
+        text = font.render(str(round(cell.energy, 2)), True, "blue")
+        screen.blit(text, (cell.x * CELL_SIZE + 5, cell.y * CELL_SIZE + 5))
+
     # font = pygame.font.SysFont(None, FONT_SIZE)
     # text = font.render(cell.energy_dir, True, "black")
     # screen.blit(text, (cell.x * CELL_SIZE + CELL_SIZE - 20, cell.y * CELL_SIZE + CELL_SIZE - 30))

@@ -1,21 +1,22 @@
 from physarum import World, NUM_STATES, NUM_ACTIONS, NUM_STEPS, FOOD, START_CELLS
 import math
 import random
+random.seed(42)
 import pickle
 from copy import deepcopy
 
 from animation import animate
 
 
-NUM_GENS = 5
-NUM_INDIVIDUALS = 10
-FITTEST_RATE = 0.2
+NUM_GENS = 30
+NUM_INDIVIDUALS = 100
+FITTEST_RATE = 0.1
 NUM_FITTEST = round(NUM_INDIVIDUALS * FITTEST_RATE)
 
 MUTATED_RATE = 0.9 * FITTEST_RATE
 NUM_MUTATED = round(NUM_INDIVIDUALS * MUTATED_RATE)
 
-MUTATION_RATE = 3
+MUTATION_RATE = 1
 NUM_MUTATIONS = round(NUM_STATES * MUTATION_RATE)
 
 adjusted_number_of_mutations_history = []
@@ -35,13 +36,14 @@ def run():
 
         for i, world in enumerate(worlds):
             last_world_state = world.run()
+            print(len(last_world_state.cells))
             fitness = total_cells_fitness(last_world_state)
             print(f"    Ind {i+1} - fitness: {round(fitness, 3)}")
             world.fitness = fitness
 
         sorted = sort_by_fitness(worlds)
         save_rules(sorted[0].rules)
-        animate(World(deepcopy(START_CELLS), deepcopy(FOOD), sorted[0].rules, NUM_STEPS))
+        # animate(World(deepcopy(START_CELLS), deepcopy(FOOD), sorted[0].rules, NUM_STEPS))
         if gen < NUM_GENS - 1:
             worlds = crossover(sorted)
         else:

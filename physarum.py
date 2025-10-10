@@ -1,5 +1,6 @@
 from copy import deepcopy
 import random
+random.seed(42)
 
 DIRS = ['0', 'l', 'r', 'u', 'd']
 NUM_DIRS = len(DIRS)
@@ -27,9 +28,9 @@ class Cell:
         return Cell(self.x, self.y, self.energy, self.energy_dir)
 
 
-NUM_STEPS = 200
+NUM_STEPS = 250
 START_CELLS = [Cell(20, 15, energy=60)]
-FOOD = [Food(23, 18, 80), Food(35, 25, 80), Food(10, 30, 80), Food(40, 10, 80), Food(5, 5, 80)]
+FOOD = [Food(23, 18, 80), Food(28, 13, 80), Food(18, 18, 80), Food(24, 11, 80), Food(16, 10, 80)]
 
 
 TRANSFERABLE_FOOD_ENERGY = 2
@@ -84,10 +85,10 @@ class World:
         )
         # check where energy is coming from
         energy_state = (
-            1 if any(c.x == cell.x-1 and c.y == cell.y and c.energy_dir == 'r' for c in self.cells) else 0, # left
-            1 if any(c.x == cell.x+1 and c.y == cell.y and c.energy_dir == 'l' for c in self.cells) else 0, # right
-            1 if any(c.x == cell.x and c.y == cell.y-1 and c.energy_dir == 'd' for c in self.cells) else 0, # up
-            1 if any(c.x == cell.x and c.y == cell.y+1 and c.energy_dir == 'u' for c in self.cells) else 0, # down
+            1 if any(c.x == cell.x-1 and c.y == cell.y and c.energy_dir == 'r' for c in self.cells) or any(f.x == cell.x-1 and f.y == cell.y for f in self.food) else 0, # left
+            1 if any(c.x == cell.x+1 and c.y == cell.y and c.energy_dir == 'l' for c in self.cells) or any(f.x == cell.x+1 and f.y == cell.y for f in self.food) else 0, # right
+            1 if any(c.x == cell.x and c.y == cell.y-1 and c.energy_dir == 'd' for c in self.cells) or any(f.x == cell.x and f.y == cell.y-1 for f in self.food) else 0, # up
+            1 if any(c.x == cell.x and c.y == cell.y+1 and c.energy_dir == 'u' for c in self.cells) or any(f.x == cell.x and f.y == cell.y+1 for f in self.food) else 0, # down
         )
         return neighbor_state, energy_state
     
@@ -163,8 +164,8 @@ class World:
         updated_food = deepcopy(self.food)
         for food in self.food:
             for cell in self.cells:
-                # ! proximity defined differently here !
-                if abs(cell.x - food.x) <= 1 and abs(cell.y - food.y) <= 1:
+                if abs(cell.x - food.x) == 1 and cell.y == food.y or \
+                   abs(cell.y - food.y) == 1 and cell.x == food.x:
                     for f in updated_food:
                         if f.x == food.x and f.y == food.y:
                             f.energy -= min(TRANSFERABLE_FOOD_ENERGY, f.energy)
