@@ -75,7 +75,7 @@ def draw_world(screen, world):
         draw_food(screen, food)
 
 def draw_cell(screen, cell):
-    color = (255-(255//cell.energy), 255-(255//cell.energy), 0)
+    color = (255-(180//cell.energy), 220-(180//cell.energy), 0)
     # color = (255, (255//cell.energy), 255-(255//cell.energy))
     # color = 'yellow'
     rect = pygame.Rect(cell.x*CELL_SIZE, cell.y*CELL_SIZE, CELL_SIZE, CELL_SIZE)
@@ -95,7 +95,7 @@ def draw_cell(screen, cell):
 
 def draw_food(screen, food):
         cell = pygame.Rect(food.x*CELL_SIZE, food.y*CELL_SIZE, CELL_SIZE, CELL_SIZE)
-        pygame.draw.rect(screen, 'orange', cell)
+        pygame.draw.rect(screen, 'purple', cell)
         font = pygame.font.SysFont(None, FONT_SIZE)
         text = font.render(str(food.energy), True, "black")
         screen.blit(text, (food.x * CELL_SIZE + 5, food.y * CELL_SIZE + 5))

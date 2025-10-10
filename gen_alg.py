@@ -7,15 +7,15 @@ from copy import deepcopy
 from animation import animate
 
 
-NUM_GENS = 100
-NUM_INDIVIDUALS = 60
-FITTEST_RATE = 0.05
+NUM_GENS = 5
+NUM_INDIVIDUALS = 10
+FITTEST_RATE = 0.2
 NUM_FITTEST = round(NUM_INDIVIDUALS * FITTEST_RATE)
 
 MUTATED_RATE = 0.9 * FITTEST_RATE
 NUM_MUTATED = round(NUM_INDIVIDUALS * MUTATED_RATE)
 
-MUTATION_RATE = 1
+MUTATION_RATE = 3
 NUM_MUTATIONS = round(NUM_STATES * MUTATION_RATE)
 
 adjusted_number_of_mutations_history = []
@@ -41,6 +41,7 @@ def run():
 
         sorted = sort_by_fitness(worlds)
         save_rules(sorted[0].rules)
+        animate(World(deepcopy(START_CELLS), deepcopy(FOOD), sorted[0].rules, NUM_STEPS))
         if gen < NUM_GENS - 1:
             worlds = crossover(sorted)
         else:

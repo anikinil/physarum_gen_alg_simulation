@@ -184,8 +184,8 @@ class World:
     def run(self):
         for _ in range(self.steps):
             self.update_growth()
-            self.update_food()
             self.update_energy()
+            self.update_food()
         return self
         
     def save_state(self):
