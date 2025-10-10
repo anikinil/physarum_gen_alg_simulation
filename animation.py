@@ -4,23 +4,23 @@ import pygame
 
 from physarum import World, Food, Cell
 
-CELL_SIZE = 60
-GRID_SIZE = 25
+CELL_SIZE = 40
+
+SCREEN_WIDTH = 2500
+SCREEN_HEIGHT = 1500
 
 COL_GRID = (50, 50, 50)
 
-FPS = 1
+FPS = 3
 
 FONT_SIZE = 30
 
 def animate(world):
 
     pygame.init()
-    screen = pygame.display.set_mode((CELL_SIZE * GRID_SIZE, CELL_SIZE * GRID_SIZE))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Physarum")
     clock = pygame.time.Clock()
-
-    print(world.cells[0].energy)
 
     running = True
     count = 0
@@ -85,13 +85,13 @@ def draw_cell(screen, cell):
     except:
         pygame.draw.rect(screen, 'red', rect)
     # pygame.draw.rect(SCREEN, YELLOW, energy, 3)
-    font = pygame.font.SysFont(None, FONT_SIZE)
-    text = font.render(str(round(cell.energy, 2)), True, "blue")
-    screen.blit(text, (cell.x * CELL_SIZE + 5, cell.y * CELL_SIZE + 5))
+    # font = pygame.font.SysFont(None, FONT_SIZE)
+    # text = font.render(str(round(cell.energy, 2)), True, "blue")
+    # screen.blit(text, (cell.x * CELL_SIZE + 5, cell.y * CELL_SIZE + 5))
     
-    font = pygame.font.SysFont(None, FONT_SIZE)
-    text = font.render(cell.energy_dir, True, "black")
-    screen.blit(text, (cell.x * CELL_SIZE + CELL_SIZE - 20, cell.y * CELL_SIZE + CELL_SIZE - 30))
+    # font = pygame.font.SysFont(None, FONT_SIZE)
+    # text = font.render(cell.energy_dir, True, "black")
+    # screen.blit(text, (cell.x * CELL_SIZE + CELL_SIZE - 20, cell.y * CELL_SIZE + CELL_SIZE - 30))
 
 def draw_food(screen, food):
         cell = pygame.Rect(food.x*CELL_SIZE, food.y*CELL_SIZE, CELL_SIZE, CELL_SIZE)
@@ -102,8 +102,8 @@ def draw_food(screen, food):
 
 if __name__ == "__main__":
     
-    start_cells = [Cell(10, 10, energy=20)]
-    food = [Food(15, 15, 50)]
+    start_cells = [Cell(20, 15, energy=40)]
+    food = [Food(40, 25, 50)]
     steps = 200
 
     if len(sys.argv) < 2:

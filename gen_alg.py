@@ -7,24 +7,27 @@ from copy import deepcopy
 from animation import animate
 
 
-NUM_GENS = 10
-NUM_INDIVIDUALS = 40
+NUM_GENS = 100
+NUM_INDIVIDUALS = 100
 # FITTEST_RATE = 0.2
 # NUM_FITTEST = round(NUM_INDIVIDUALS * FITTEST_RATE)
 
-MUTATED_RATE = 0.5
-NUM_MUTATED = round(NUM_INDIVIDUALS * MUTATED_RATE)
+MUTATED_RATE = 0.8
+NUM_MUTATED = round(NUM_INDIVIDUALS//2 * MUTATED_RATE)
 
-MUTATION_RATE = 0.2
+MUTATION_RATE = 0.9
 NUM_MUTATIONS = round(NUM_STATES * MUTATION_RATE)
 
-NUM_STEPS = 50
+NUM_STEPS = 200
 
 DIRECTIONS = ['0', 'l', 'r', 'u', 'd']
 
-START_CELLS = [Cell(10, 10, energy=40)]
-FOOD = [Food(15, 15, 50)]
+# START_CELLS = [Cell(18, 25, energy=40)]
+# FOOD = [Food(17, 15, 50)]
     
+START_CELLS = [Cell(20, 15, energy=40)]
+FOOD = [Food(40, 25, 50)]
+
 
 def run():
 
@@ -33,6 +36,7 @@ def run():
     for _ in range(NUM_INDIVIDUALS):
         worlds.append(World(cells=deepcopy(START_CELLS), food=deepcopy(FOOD), steps=NUM_STEPS))
         
+    fitness_history = []
     for gen in range(NUM_GENS):
         print(f"Generation {gen+1}")
         
@@ -40,19 +44,21 @@ def run():
             # print(f"  Individual {i+1}")
             last_world_state = world.run()
             # fitness = food_proximity_fitness(last_world_state)
-            fitness = total_energy_fitness(last_world_state)
+            fitness = total_energy_fitness(last_world_state) - total_cells_fitness(last_world_state) + area_fitness(last_world_state)
             # print(f"    Fitness: {round(fitness, 3)}")
             world.fitness = fitness
 
         fittest = get_k_fittest(worlds, NUM_INDIVIDUALS//2+2)
-        print(f"      Best fitness: {round(fittest[0].fitness, 3)}")
+        average_fitness = sum(fittest[i].fitness for i in range(len(fittest))) / len(fittest)
+        fitness_history.append(average_fitness)
+        print(f"      Average fitness: {average_fitness}")
         save_rules(fittest[0].rules)
         if gen < NUM_GENS - 1:
             worlds = crossover(fittest)
         else:
-            save_rules(fittest[0].rules)
             best_world = World(cells=deepcopy(START_CELLS), food=deepcopy(FOOD), rules=fittest[0].rules, steps=NUM_STEPS)
             animate(best_world)
+            plot_fitness_history(fitness_history)
 
 def get_k_fittest(worlds, k):
     worlds.sort(key=lambda w: w.fitness, reverse=True)
@@ -134,6 +140,17 @@ def save_rules(rules):
         
     with open('fittest_rules.pkl', 'wb') as f:
         pickle.dump(rules, f)
+        
+def plot_fitness_history(fitness_history):
+    import matplotlib.pyplot as plt
+
+    plt.plot(range(1, len(fitness_history)+1), fitness_history)
+    plt.xlabel('Generation')
+    plt.ylabel('Best Fitness')
+    plt.title('Fitness over Generations')
+    plt.grid()
+    plt.savefig('fitness_history.png')
+    plt.show()
         
 
 if __name__ == "__main__":

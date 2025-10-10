@@ -10,7 +10,7 @@ LEN_STATE_CODE = 2*4
 MIN_ENERGY = 1
 MAX_ENERGY_PORTION = 3
 
-TRANSMITTABLE_FOOD_ENERGY = 2
+transferABLE_FOOD_ENERGY = 2
 
 def encode_state(neighbors, energy):
     idx = 0
@@ -52,7 +52,7 @@ class Food:
 
 class Cell:
 
-    def __init__(self, x, y, energy=10, energy_dir='0'):
+    def __init__(self, x, y, energy, energy_dir='0'):
         self.x = x
         self.y = y
         self.energy = energy
@@ -64,7 +64,7 @@ class Cell:
 
 class World:
 
-    def __init__(self, cells, food, rules=None, steps=1000):
+    def __init__(self, cells, food, rules=None, steps=100):
         self.cells = cells
         self.food = food
         self.rules = rules if rules is not None else get_randomized_rules()
@@ -94,7 +94,7 @@ class World:
         for cell in self.cells:
             neighbor_state, energy_state = self.get_neighborhood_state(cell)
 
-            if cell.energy < 2: continue
+            if cell.energy < MIN_ENERGY * 2: continue
 
             growth_dir, _ = get_next_action(self.rules, neighbor_state, energy_state)
             
@@ -105,7 +105,7 @@ class World:
             elif growth_dir == 'u': target_y -= 1
             elif growth_dir == 'd': target_y += 1
             
-            if not any(c.x == target_x and c.y == target_y for c in self.cells):
+            if not any(c.x == target_x and c.y == target_y for c in updated_cells):
                 if not any(f.x == target_x and f.y == target_y for f in self.food):
                     new_cell = Cell(target_x, target_y, cell.energy/2)
                     updated_cells.append(new_cell)
@@ -114,16 +114,19 @@ class World:
                             updated_cells[i].energy /= 2
                             break
 
-        self.cells = deepcopy(updated_cells)
+        self.cells = updated_cells
 
     def update_energy(self):
         updated_cells = deepcopy(self.cells)
         for cell in self.cells:
             neighbor_state, energy_state = self.get_neighborhood_state(cell)
 
-            transmittable_energy = cell.energy / MAX_ENERGY_PORTION
+            transferable_energy = cell.energy / MAX_ENERGY_PORTION          
+            # if cell.energy < 0:
+                # print("starting with", cell.x, cell.y, "with energy", cell.energy, "can transfer", transferable_energy)
 
-            if cell.energy - transmittable_energy < MIN_ENERGY: continue
+            if cell.energy - transferable_energy < MIN_ENERGY:
+                continue
 
             _, energy_dir = get_next_action(self.rules, neighbor_state, energy_state)
 
@@ -135,30 +138,34 @@ class World:
             elif energy_dir == 'd': target_y += 1
 
             if any(c.x == target_x and c.y == target_y for c in self.cells):
-                for i, c in enumerate(updated_cells):
-                    if c.x == target_x and c.y == target_y:
-                        updated_cells[i].energy += transmittable_energy
-                        break
+                # print("transferring energy")
                 for i, c in enumerate(updated_cells):
                     if c.x == cell.x and c.y == cell.y:
-                        updated_cells[i].energy -= transmittable_energy
+                        # print("from cell", c.x, c.y, "with energy", c.energy)
+                        updated_cells[i].energy -= transferable_energy
                         updated_cells[i].energy_dir = energy_dir
+                        break
+                for i, c in enumerate(updated_cells):
+                    if c.x == target_x and c.y == target_y:
+                        # print("to cell", c.x, c.y, "with energy", c.energy)
+                        updated_cells[i].energy += transferable_energy
                         break
                 # for i, c in enumerate(self.cells):
                 #     if c.x == cell.x and c.y == cell.y:
-                #         self.cells[i].energy -= transmittable_energy
+                #         self.cells[i].energy -= transferable_energy
 
-        self.cells = deepcopy(updated_cells)
+        self.cells = updated_cells
 
     def update_food(self):
         updated_cells = deepcopy(self.cells)
         updated_food = deepcopy(self.food)
         for food in self.food:
             for cell in self.cells:
+                # ! proximity defined differently here !
                 if abs(cell.x - food.x) <= 1 and abs(cell.y - food.y) <= 1:
                     for f in updated_food:
                         if f.x == food.x and f.y == food.y:
-                            f.energy -= min(TRANSMITTABLE_FOOD_ENERGY, f.energy)
+                            f.energy -= min(transferABLE_FOOD_ENERGY, f.energy)
                             if f.energy <= 0:
                                 updated_food.remove(f)
                             break
@@ -168,9 +175,9 @@ class World:
                             updated_cells[i].energy += min(MAX_ENERGY_PORTION, updated_cells[i].energy)
                             break
                     break
-        
-        self.cells = deepcopy(updated_cells)
-        self.food = deepcopy(updated_food)
+
+        self.cells = updated_cells
+        self.food = updated_food
 
     def run(self):
         for _ in range(self.steps):
