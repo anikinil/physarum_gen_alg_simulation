@@ -8,12 +8,12 @@ from animation import animate
 
 
 NUM_GENS = 200
-NUM_INDIVIDUALS = 60
-# FITTEST_RATE = 0.2
-# NUM_FITTEST = round(NUM_INDIVIDUALS * FITTEST_RATE)
+NUM_INDIVIDUALS = 8
+FITTEST_RATE = 0.2
+NUM_FITTEST = round(NUM_INDIVIDUALS * FITTEST_RATE)
 
-MUTATED_RATE = 0.7
-NUM_MUTATED = round(NUM_INDIVIDUALS//2 * MUTATED_RATE)
+MUTATED_RATE = 0.7 * FITTEST_RATE
+NUM_MUTATED = round(NUM_INDIVIDUALS * MUTATED_RATE)
 
 MUTATION_RATE = 0.5
 NUM_MUTATIONS = round(NUM_STATES * MUTATION_RATE)
@@ -37,34 +37,30 @@ def run():
         worlds.append(World(cells=deepcopy(START_CELLS), food=deepcopy(FOOD), steps=NUM_STEPS))
         
     fitness_history = []
+    sorted = []
     for gen in range(NUM_GENS):
-        print(f"Gen {gen+1}, \
-            average: {fitness_history[-1] if fitness_history else 'N/A'}, \
-            best: {str(fittest[0]) if fitness_history else 'N/A'}")
+        print(f"Gen {gen+1} - average: {fitness_history[-1] if fitness_history else 'N/A'}, best: {str(sorted[0].fitness) if len(sorted) > 0 else 'N/A'}")
 
         for i, world in enumerate(worlds):
-            # print(f"  Individual {i+1}")
             last_world_state = world.run()
             fitness = total_cells_fitness(last_world_state)
-            print(f"    Fitness: {round(fitness, 3)}")
+            print(f"    Ind {i+1}: Fitness: {round(fitness, 3)}")
             world.fitness = fitness
 
-        fittest = get_k_fittest(worlds, NUM_INDIVIDUALS//2+2)
-        average_fitness = round(sum(worlds[i].fitness for i in range(len(fittest))) / len(fittest), 3)
+        sorted = sort_by_fitness(worlds)
+        average_fitness = round(sum(sorted[i].fitness for i in range(len(sorted))) / len(sorted), 3)
         fitness_history.append(average_fitness)
-        # print(f"Average fitness in gen {gen+1}: {average_fitness}")
-        save_rules(fittest[0].rules)
+        save_rules(sorted[0].rules)
         if gen < NUM_GENS - 1:
-            worlds = crossover(fittest)
+            worlds = crossover(sorted)
         else:
-            best_world = World(cells=deepcopy(START_CELLS), food=deepcopy(FOOD), rules=fittest[0].rules, steps=NUM_STEPS)
+            best_world = World(cells=deepcopy(START_CELLS), food=deepcopy(FOOD), rules=sorted[0].rules, steps=NUM_STEPS)
             animate(best_world)
             plot_fitness_history(fitness_history)
             
 
-def get_k_fittest(worlds, k):
-    worlds.sort(key=lambda w: w.fitness, reverse=True)
-    return worlds[:k]
+def sort_by_fitness(worlds):
+    return sorted(worlds, key=lambda w: w.fitness, reverse=True)
 
 def total_cells_fitness(last_world_state):
     return len(last_world_state.cells)
@@ -118,13 +114,15 @@ def custom_fitness(last_world_state):
 
     return abs(avg_x_cells - avg_y_energy)
 
-def crossover(fittest_worlds):
+def crossover(sorted_worlds):
 
+    fittest = sorted_worlds[:NUM_FITTEST]
+    least_fit = sorted_worlds[NUM_FITTEST:]
+    
     crossed = []
-
-    for i in range(0, len(fittest_worlds), 2):
-        parent1 = fittest_worlds[i]
-        parent2 = fittest_worlds[i+1] if i+1 < len(fittest_worlds) else fittest_worlds[0]
+    for i in range(0, len(fittest), 2):
+        parent1 = fittest[i]
+        parent2 = fittest[i+1] if i+1 < len(fittest) else fittest[0]
 
         rand_indexes = list(range(NUM_STATES))
         random.shuffle(rand_indexes)
@@ -149,7 +147,7 @@ def crossover(fittest_worlds):
         crossed.append(child1)
         crossed.append(child2)
 
-    return mutate(crossed) + fittest_worlds[:NUM_INDIVIDUALS - len(crossed)]
+    return mutate(crossed + fittest[:min(NUM_FITTEST, NUM_INDIVIDUALS - NUM_FITTEST)] + least_fit[:min(NUM_INDIVIDUALS - NUM_FITTEST - NUM_FITTEST, len(least_fit))])
 
 def mutate(worlds):
 
