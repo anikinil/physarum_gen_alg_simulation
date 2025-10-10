@@ -1,47 +1,45 @@
-import itertools
+from copy import deepcopy
+import random
 
+DIRS = ['0', 'l', 'r', 'u', 'd']
+NUM_DIRS = len(DIRS)
+NUM_ACTIONS = 5*5
+NUM_STATES = 16*16
+LEN_STATE_CODE = 2*4
 
-NEIGHBOR_STATE_LOOKUP = {
-    0: {'l': 0, 'r': 0, 'u': 0, 'd': 0},  # no neighbors
-    1: {'l': 1, 'r': 0, 'u': 0, 'd': 0},  # left
-    2: {'l': 0, 'r': 1, 'u': 0, 'd': 0},  # right
-    3: {'l': 0, 'r': 0, 'u': 1, 'd': 0},  # above
-    4: {'l': 0, 'r': 0, 'u': 0, 'd': 1},  # below
-    5: {'l': 1, 'r': 1, 'u': 0, 'd': 0},  # left, right
-    6: {'l': 1, 'r': 0, 'u': 1, 'd': 0},  # left, above
-    7: {'l': 1, 'r': 0, 'u': 0, 'd': 1},  # left, below
-    8: {'l': 0, 'r': 1, 'u': 1, 'd': 0},  # right, above
-    9: {'l': 0, 'r': 1, 'u': 0, 'd': 1},  # right, below
-    10: {'l': 0, 'r': 0, 'u': 1, 'd': 1}, # above, below
-    11: {'l': 1, 'r': 1, 'u': 1, 'd': 0}, # left, right, above
-    12: {'l': 1, 'r': 1, 'u': 0, 'd': 1}, # left, right, below
-    13: {'l': 1, 'r': 0, 'u': 1, 'd': 1}, # left, above, below
-    14: {'l': 0, 'r': 1, 'u': 1, 'd': 1}, # right, above, below
-    15: {'l': 1, 'r': 1, 'u': 1, 'd': 1}, # left, right, above, below
-}
+MIN_ENERGY = 1
+MAX_ENERGY_PORTION = 3
 
-MEMORY_LENGTH = 4
+TRANSMITTABLE_FOOD_ENERGY = 2
 
-MEMORY_STATE_LOOKUP = {}
-symbols = ['0', 'l', 'r', 'u', 'd']
-for combo in itertools.product(symbols, repeat=MEMORY_LENGTH):
-    MEMORY_STATE_LOOKUP[len(MEMORY_STATE_LOOKUP)] = list(combo)
-    
+def encode_state(neighbors, energy):
+    idx = 0
+    for bit in neighbors + energy:
+        idx = (idx << 1) | bit
+    return idx
 
-class Rules:
-    def __init__(self, growth, energy_passing, signal_passing):
-        self.growth = growth
-        self.energy_passing = energy_passing
-        self.signal_passing = signal_passing
-    
-    def get_growth_dir(self, neighbors, memory, energy):
-        return self.growth[neighbors][memory][energy]
+def decode_state(state_code):
+    states = tuple((state_code >> i) & 1 for i in reversed(range(LEN_STATE_CODE)))
+    return states[slice(4)], states[slice(4, LEN_STATE_CODE)]
 
-    def get_energy_dir(self, neighbors, memory, energy):
-        return self.energy_passing[neighbors][memory][energy]
+def encode_action(growth_dir, energy_dir):
+    growth_dir_idx = DIRS.index(growth_dir)
+    energy_dir_idx = DIRS.index(energy_dir)
+    return growth_dir_idx * NUM_DIRS + energy_dir_idx
 
-    def get_signal(self, neighbors, memory, energy):
-        return self.signal_passing[neighbors][memory][energy]
+def decode_action(action_code):
+    growth_dir_idx = action_code // NUM_DIRS
+    energy_dir_idx = action_code % NUM_DIRS
+    return (DIRS[growth_dir_idx], DIRS[energy_dir_idx])
+
+def get_next_action(rules, neigh_state, energy_state):
+    return decode_action(rules[encode_state(neigh_state, energy_state)])
+
+def get_randomized_rules():
+    weights_growth = [1, 1, 1 ,1, 1] # 0, l, r, u, d
+    weights_energy = [1, 1, 1 ,1, 1] # 0, l, r, u, d
+    weights_total = [w1 * w2 for w1 in weights_growth for w2 in weights_energy]
+    return random.choices(range(NUM_ACTIONS), weights=weights_total, k=NUM_STATES)
 
 
 class Food:
@@ -54,204 +52,131 @@ class Food:
 
 class Cell:
 
-    def __init__(self, x, y, energy=10, memory=['0', '0', '0', '0']):
+    def __init__(self, x, y, energy=10, energy_dir='0'):
         self.x = x
         self.y = y
         self.energy = energy
-        self.memory = memory
-
-    def receive_signal(self, signal):
-        self.memory.append(signal)
-        if len(self.memory) > 4:
-            self.memory.pop()
+        self.energy_dir = energy_dir
 
     def copy(self):
-        return Cell(self.x, self.y, self.energy, self.memory.copy())
+        return Cell(self.x, self.y, self.energy, self.energy_dir)
 
 
 class World:
 
-    def __init__(self, cells, food, rules, steps=1000):
+    def __init__(self, cells, food, rules=None, steps=1000):
         self.cells = cells
         self.food = food
-        self.rules = rules
+        self.rules = rules if rules is not None else get_randomized_rules()
         self.steps = steps
         self.fitness = 0
+
+    # optimize: reuse neighbor information on other neighboring cells (make a whole pass through the grid)
+    def get_neighborhood_state(self, cell):
+        # check where the neighbors are
+        neighbor_state = (
+            1 if any(c.x == cell.x-1 and c.y == cell.y for c in self.cells) else 0, # left
+            1 if any(c.x == cell.x+1 and c.y == cell.y for c in self.cells) else 0, # right
+            1 if any(c.x == cell.x and c.y == cell.y-1 for c in self.cells) else 0, # up
+            1 if any(c.x == cell.x and c.y == cell.y+1 for c in self.cells) else 0, # down
+        )
+        # check where energy is coming from
+        energy_state = (
+            1 if any(c.x == cell.x-1 and c.y == cell.y and c.energy_dir == 'r' for c in self.cells) else 0, # left
+            1 if any(c.x == cell.x+1 and c.y == cell.y and c.energy_dir == 'l' for c in self.cells) else 0, # right
+            1 if any(c.x == cell.x and c.y == cell.y-1 and c.energy_dir == 'd' for c in self.cells) else 0, # up
+            1 if any(c.x == cell.x and c.y == cell.y+1 and c.energy_dir == 'u' for c in self.cells) else 0, # down
+        )
+        return neighbor_state, energy_state
     
-    def set_fitness(self, fitness):
-        self.fitness = fitness
-        
-    def get_fitness(self):
-        return self.fitness
-        
-    # optimize: reuse neighbor information on other neighbouring cells (make a whole pass through the grid)
-    def get_cell_state(self, cell):
-        val = {'l': 0, 'r': 0, 'u': 0, 'd': 0}
-        for other in self.cells:
-            if other.x == cell.x - 1 and other.y == cell.y:
-                val['l'] = 1
-            elif other.x == cell.x + 1 and other.y == cell.y:
-                val['r'] = 1
-            elif other.x == cell.x and other.y == cell.y - 1:
-                val['u'] = 1
-            elif other.x == cell.x and other.y == cell.y + 1:
-                val['d'] = 1
-        neighbors = None
-        for key, value in NEIGHBOR_STATE_LOOKUP.items():
-            if value == val:
-                neighbors = key
-                break
-        memory = None
-        for key, value in MEMORY_STATE_LOOKUP.items():
-            if value == cell.memory:
-                memory = key
-                break
-        return {
-            'neighbors': neighbors,
-            'memory': memory,
-            'energy': round(min(cell.energy, 9)) # cap energy state to 9
-        }
-
     def update_growth(self):
-        updated_cells = self.cells.copy()
+        updated_cells = deepcopy(self.cells)
         for cell in self.cells:
-            cell_state = self.get_cell_state(cell)
+            neighbor_state, energy_state = self.get_neighborhood_state(cell)
 
-            neigh_state = cell_state['neighbors']
-            memory_state = cell_state['memory']
-            energy_state = cell_state['energy']
+            if cell.energy < 2: continue
 
-            if cell.energy < 2:
-                continue
-
-            dir = self.rules.get_growth_dir(neigh_state, memory_state, energy_state)
-
+            growth_dir, _ = get_next_action(self.rules, neighbor_state, energy_state)
+            
             target_x, target_y = cell.x, cell.y
-            if dir == 'l': target_x -= 1
-            elif dir == 'r': target_x += 1
-            elif dir == 'u': target_y -= 1
-            elif dir == 'd': target_y += 1
-            else: continue # '0': no growth
+            if growth_dir == '0': continue # no growth
+            elif growth_dir == 'l': target_x -= 1
+            elif growth_dir == 'r': target_x += 1
+            elif growth_dir == 'u': target_y -= 1
+            elif growth_dir == 'd': target_y += 1
             
             if not any(c.x == target_x and c.y == target_y for c in self.cells):
-                new_cell = Cell(target_x, target_y, cell.energy/2)
-                updated_cells.append(new_cell)
-                # cell.energy /= 2
+                if not any(f.x == target_x and f.y == target_y for f in self.food):
+                    new_cell = Cell(target_x, target_y, cell.energy/2)
+                    updated_cells.append(new_cell)
+                    for i, c in enumerate(updated_cells):
+                        if c.x == cell.x and c.y == cell.y:
+                            updated_cells[i].energy /= 2
+                            break
+
+        self.cells = deepcopy(updated_cells)
+
+    def update_energy(self):
+        updated_cells = deepcopy(self.cells)
+        for cell in self.cells:
+            neighbor_state, energy_state = self.get_neighborhood_state(cell)
+
+            transmittable_energy = cell.energy / MAX_ENERGY_PORTION
+
+            if cell.energy - transmittable_energy < MIN_ENERGY: continue
+
+            _, energy_dir = get_next_action(self.rules, neighbor_state, energy_state)
+
+            target_x, target_y = cell.x, cell.y
+            if energy_dir == '0': continue # no energy transfer
+            elif energy_dir == 'l': target_x -= 1
+            elif energy_dir == 'r': target_x += 1
+            elif energy_dir == 'u': target_y -= 1
+            elif energy_dir == 'd': target_y += 1
+
+            if any(c.x == target_x and c.y == target_y for c in self.cells):
+                for i, c in enumerate(updated_cells):
+                    if c.x == target_x and c.y == target_y:
+                        updated_cells[i].energy += transmittable_energy
+                        break
                 for i, c in enumerate(updated_cells):
                     if c.x == cell.x and c.y == cell.y:
-                        # updated_cells[i] = c.copy()
-                        updated_cells[i].energy /= 2
+                        updated_cells[i].energy -= transmittable_energy
+                        updated_cells[i].energy_dir = energy_dir
                         break
+                # for i, c in enumerate(self.cells):
+                #     if c.x == cell.x and c.y == cell.y:
+                #         self.cells[i].energy -= transmittable_energy
 
-        self.cells = updated_cells
-    
-    def update_energy(self):
-        updated_cells = self.cells.copy()
-        for cell in self.cells:
-            cell_state = self.get_cell_state(cell)
-            
-            energy_state = cell_state['energy']
-            neigh_state = cell_state['neighbors']
-            memory_state = cell_state['memory']
-            
-            if cell.energy < 1.5:
-                continue
-
-            dir = self.rules.get_energy_dir(neigh_state, memory_state, energy_state)
-
-            target_x, target_y = cell.x, cell.y
-            if dir == 'l': target_x -= 1
-            elif dir == 'r': target_x += 1
-            elif dir == 'u': target_y -= 1
-            elif dir == 'd': target_y += 1
-            else: continue # '0': no energy passed
-            
-            if any(c.x == target_x and c.y == target_y for c in self.cells):
-                for i, c in enumerate(self.cells):
-                    if c.x == target_x and c.y == target_y:
-                        updated_cells[i] = c.copy()
-                        updated_cells[i].energy += 0.5
-                        c.energy += 0.5
-                        break
-                for i, c in enumerate(self.cells):
-                    if c.x == cell.x and c.y == cell.y:
-                        updated_cells[i] = c.copy()
-                        updated_cells[i].energy -= 0.5
-                        break
-                
-        self.cells = updated_cells
-
-    def update_signals(self):
-        for cell in self.cells:
-            cell_state = self.get_cell_state(cell)
-
-            neigh_state = cell_state['neighbors']
-            memory_state = cell_state['memory']
-            energy_state = cell_state['energy']
-
-            dir = self.rules.get_signal(neigh_state, memory_state, energy_state)
-            
-            target_x, target_y = cell.x, cell.y
-            if dir == 'l':
-                target_x -= 1
-            elif dir == 'r':
-                target_x += 1
-            elif dir == 'u':
-                target_y -= 1
-            elif dir == 'd':
-                target_y += 1
-            else: continue # '0': no signal passed
-            
-            for cell in self.cells:
-                if cell.x == target_x and cell.y == target_y:
-                    cell.receive_signal(dir)
-                    # if dir == 'l':
-                    #     pygame.draw.line(SCREEN, 'blue', 
-                    #                        (cell.x*GRID_SIZE, cell.y*GRID_SIZE + GRID_SIZE*0.4),
-                    #                        (cell.x*GRID_SIZE, cell.y*GRID_SIZE+GRID_SIZE*0.6), 6)
-                    # elif dir == 'r':
-                    #     pygame.draw.line(SCREEN, 'blue', 
-                    #                        (cell.x*GRID_SIZE+GRID_SIZE, cell.y*GRID_SIZE + GRID_SIZE*0.4),
-                    #                        (cell.x*GRID_SIZE+GRID_SIZE, cell.y*GRID_SIZE+GRID_SIZE*0.6), 6)
-                    # elif dir == 'u':
-                    #     pygame.draw.line(SCREEN, 'blue', 
-                    #                        (cell.x*GRID_SIZE+GRID_SIZE*0.4, cell.y*GRID_SIZE),
-                    #                        (cell.x*GRID_SIZE+GRID_SIZE*0.6, cell.y*GRID_SIZE), 6)
-                    # elif dir == 'd':
-                    #     pygame.draw.line(SCREEN, 'blue', 
-                    #                        (cell.x*GRID_SIZE+GRID_SIZE*0.4, cell.y*GRID_SIZE+GRID_SIZE),
-                    #                        (cell.x*GRID_SIZE+GRID_SIZE*0.6, cell.y*GRID_SIZE+GRID_SIZE), 6)
+        self.cells = deepcopy(updated_cells)
 
     def update_food(self):
-        updated_cells = self.cells.copy()
-        updated_food = self.food.copy()
-        for cell in self.cells:
-            for food in self.food:
+        updated_cells = deepcopy(self.cells)
+        updated_food = deepcopy(self.food)
+        for food in self.food:
+            for cell in self.cells:
                 if abs(cell.x - food.x) <= 1 and abs(cell.y - food.y) <= 1:
-                    cell.energy += 1
                     for f in updated_food:
                         if f.x == food.x and f.y == food.y:
-                            f.energy -= 1
+                            f.energy -= min(TRANSMITTABLE_FOOD_ENERGY, f.energy)
                             if f.energy <= 0:
                                 updated_food.remove(f)
                             break
                     for i, c in enumerate(self.cells):
                         if c.x == cell.x and c.y == cell.y:
-                            updated_cells[i] = c.copy()
-                            updated_cells[i].energy += 1
+                            updated_cells[i] = deepcopy(c)
+                            updated_cells[i].energy += min(MAX_ENERGY_PORTION, updated_cells[i].energy)
                             break
                     break
-        self.cells = updated_cells
-        self.food = updated_food
+        
+        self.cells = deepcopy(updated_cells)
+        self.food = deepcopy(updated_food)
 
     def run(self):
-        for step in range(self.steps):
-            if step % 10 == 0:
-                self.update_growth()
-            if step % 5 == 0:
-                self.update_energy()
-                self.update_food()
-            self.update_signals()
+        for _ in range(self.steps):
+            self.update_growth()
+            self.update_food()
+            self.update_energy()
         return self
         
     def save_state(self):
