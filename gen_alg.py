@@ -7,7 +7,7 @@ from copy import deepcopy
 from animation import animate
 
 
-NUM_GENS = 500
+NUM_GENS = 200
 NUM_INDIVIDUALS = 60
 # FITTEST_RATE = 0.2
 # NUM_FITTEST = round(NUM_INDIVIDUALS * FITTEST_RATE)
@@ -26,7 +26,7 @@ DIRECTIONS = ['0', 'l', 'r', 'u', 'd']
 # FOOD = [Food(17, 15, 50)]
     
 START_CELLS = [Cell(20, 15, energy=60)]
-FOOD = [Food(35, 25, 100)]
+FOOD = [Food(30, 20, 10), Food(35, 25, 10), Food(10, 30, 10), Food(40, 10, 10), Food(5, 5, 10)]
 
 
 def run():
@@ -38,8 +38,10 @@ def run():
         
     fitness_history = []
     for gen in range(NUM_GENS):
-        print(f"Generation {gen+1}")
-        
+        print(f"Gen {gen+1}, \
+            average: {fitness_history[-1] if fitness_history else 'N/A'}, \
+            best: {str(fittest[0]) if fitness_history else 'N/A'}")
+
         for i, world in enumerate(worlds):
             # print(f"  Individual {i+1}")
             last_world_state = world.run()
@@ -50,7 +52,7 @@ def run():
         fittest = get_k_fittest(worlds, NUM_INDIVIDUALS//2+2)
         average_fitness = round(sum(worlds[i].fitness for i in range(len(fittest))) / len(fittest), 3)
         fitness_history.append(average_fitness)
-        print(f"      Average fitness: {average_fitness}")
+        # print(f"Average fitness in gen {gen+1}: {average_fitness}")
         save_rules(fittest[0].rules)
         if gen < NUM_GENS - 1:
             worlds = crossover(fittest)

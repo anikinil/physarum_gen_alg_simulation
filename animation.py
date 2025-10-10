@@ -15,6 +15,11 @@ FPS = 10
 
 FONT_SIZE = 30
 
+
+START_CELLS = [Cell(20, 15, energy=60)]
+FOOD = [Food(30, 20, 10), Food(35, 25, 10), Food(10, 30, 10), Food(40, 10, 10), Food(12, 12, 10)]
+NUM_STEPS = 90
+
 def animate(world):
 
     pygame.init()
@@ -102,9 +107,6 @@ def draw_food(screen, food):
 
 if __name__ == "__main__":
     
-    start_cells = [Cell(20, 15, energy=40)]
-    food = [Food(40, 25, 50)]
-    steps = 200
 
     if len(sys.argv) < 2:
         rules_file_path = 'fittest_rules.pkl'
@@ -114,7 +116,7 @@ if __name__ == "__main__":
     with open(rules_file_path, 'rb') as f:
         rules = pickle.load(f)
 
-    world = World(start_cells, food, rules, steps)
+    world = World(START_CELLS, FOOD, rules, NUM_STEPS)
     # world = World(cells=start_cells, food=food, steps=steps)
 
     animate(world)
