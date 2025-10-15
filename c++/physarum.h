@@ -44,6 +44,8 @@ struct World {
 
     vector<uint8_t> rules;
 
+    float fitness = 0;
+
     World step() {
         
         World newWorld = updateGrowth();
