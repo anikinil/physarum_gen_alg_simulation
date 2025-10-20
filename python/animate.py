@@ -67,7 +67,7 @@ def get_world(gen):
                     raise ValueError(f"Expected 256 rules for gen {gen}, got {len(rules)}")
                 foods_str = row['foods'].strip()
                 foods = [[Food(int(x), int(y), int(energy)) for x, y, energy in (f.split(" ") for f in foods_str.split(","))]]
-                return World(cells=[Cell(0, 0, INITIAL_ENERGY)] rules=rules, foods=foods)
+                return World(cells=[Cell(0, 0, INITIAL_ENERGY)], rules=rules, foods=foods)
     raise KeyError(f"No rules found for generation {gen} in {filename}")
 
 def animate():
