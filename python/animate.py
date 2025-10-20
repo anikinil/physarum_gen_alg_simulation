@@ -1,5 +1,6 @@
 import csv
 import pygame
+from physarum import World, Cell, Food
 
 # genetic algorithm
 NUM_GENERATIONS = 15
@@ -12,6 +13,8 @@ SCREEN_WIDTH, SCREEN_HEIGHT = 2500, 1500
 FPS = 10
 FONT_SIZE = 30
 COL_GRID = (50, 50, 50)
+
+INITIAL_ENERGY = 10
  
 def draw_grid(screen):
     for x in range(SCREEN_WIDTH//2, screen.get_width(), CELL_SIZE):
@@ -42,29 +45,30 @@ def draw_food(screen, x, y, energy):
         text = font.render(str(energy), True, "black")
         screen.blit(text, (SCREEN_WIDTH//2 + x * CELL_SIZE + 5, SCREEN_HEIGHT//2 + y * CELL_SIZE + 5))
 
-def draw_world_frame(screen, step):
+def draw_world_frame(screen, world_state):
+    # TODO
+    pass
 
-    filename = f"../cpp/data/best_ind.csv"
-    with open(filename, 'r', newline='') as csvfile:
+def plot_fitness_history():
+    # TODO access fitness history from cpp and plot it to a png file here using matplotlib
+    pass
+
+def get_world(gen):
+    filename = "../cpp/best_rules.csv"
+    rules = []
+    foods = []
+    with open(filename, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            if int(row['step']) == step:
-                x = int(row['x'])
-                y = int(row['y'])
-                if row['type'] == 'cell':
-                    draw_cell(screen, x, y, float(row['energy']))
-                elif row['type'] == 'food':
-                    draw_food(screen, x, y, float(row['energy']))
-
-# def get_total_energy(step):
-#     total_energy = 0
-#     filename = f"../cpp/data/best_ind.csv"
-#     with open(filename, 'r', newline='') as csvfile:
-#         reader = csv.DictReader(csvfile)
-#         for row in reader:
-#             if int(row['step']) == step:
-#                 total_energy += float(row['energy'])
-#     print("Total energy in world at step", step, ":", total_energy)
+            if int(row['gen']) == gen:
+                rules_str = row['rules'].strip()
+                rules = [int(x) for x in rules_str.split()]
+                if len(rules) != 256:
+                    raise ValueError(f"Expected 256 rules for gen {gen}, got {len(rules)}")
+                foods_str = row['foods'].strip()
+                foods = [[Food(int(x), int(y), int(energy)) for x, y, energy in (f.split(" ") for f in foods_str.split(","))]]
+                return World(cells=[Cell(0, 0, INITIAL_ENERGY)] rules=rules, foods=foods)
+    raise KeyError(f"No rules found for generation {gen} in {filename}")
 
 def animate():
 
@@ -72,6 +76,9 @@ def animate():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Physarum")
     clock = pygame.time.Clock()
+
+    world = get_world(gen=NUM_GENERATIONS-1)
+    # use the physarum.h implementation to define the world here
 
     running = True
     step = 0
@@ -85,12 +92,13 @@ def animate():
 
         # draw_grid(screen)
 
-        draw_world_frame(screen, step)
+        draw_world_frame(screen, step) # also physarum.h logic here
         pygame.display.flip()  
         clock.tick(FPS)
 
         if step < NUM_STEPS:
             step += 1
+            # use the physarum.h implementation to step the world here
             pygame.display.set_caption(f"Physarum - Step {step}/{NUM_STEPS}")
         elif step == NUM_STEPS:
             pygame.display.set_caption(f"Physarum - Finished {NUM_STEPS} steps")
@@ -103,6 +111,6 @@ if __name__ == "__main__":
 
 
     # start gen alg with params here
-    
-    
+
+    plot_fitness_history()
     animate()
