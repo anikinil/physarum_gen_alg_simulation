@@ -24,6 +24,8 @@ float MIN_GROWTH_ENERGY = 3;
 float ENERGY_PORTION = 0.2;
 float MIN_ENERGY_TO_PASS = 0.1;
 
+float NUM_STATES = 256;
+
 struct Cell {
     int x;
     int y;
