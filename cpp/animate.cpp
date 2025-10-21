@@ -1,6 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include <fstream>
 #include <sstream>
+#include <gen_alg.cpp>
 #include "physarum.hpp"
 
 using namespace std;
@@ -69,10 +70,10 @@ void drawCells(sf::RenderWindow& window, vector<Cell>& cells) {
     for (const Cell& cell : cells) {
         sf::RectangleShape shape(sf::Vector2f(CELL_SIZE - 2, CELL_SIZE - 2));
         shape.setPosition(middleX + cell.x * CELL_SIZE, middleY + cell.y * CELL_SIZE);
-        int brightness = static_cast<int>(std::min(255.0f, std::max(50.0f, cell.energy * 20.0f)));
+        int brightness = static_cast<int>(std::min(255.0f, std::max(50.0f, cell.energy * 40.0f)));
         shape.setFillColor(sf::Color(brightness, brightness, 0));
-        shape.setOutlineColor(sf::Color(brightness, brightness, 0));
-        // shape.setOutlineThickness(1);
+        shape.setOutlineColor(sf::Color::Red);
+        if (cell.energy >= MIN_GROWTH_ENERGY) shape.setOutlineThickness(2);
         window.draw(shape);
     }
 }
@@ -125,7 +126,7 @@ void animate(World& world) {
 int main() {
 
     World world = readWorld();
-    world.cells.push_back(Cell{0, 0, 10.0f});
+    world.cells.push_back(Cell{0, 0, INITIAL_ENERGY, 'n'});
 
     // cout << "Rules:" << endl;
     // int count = 0;

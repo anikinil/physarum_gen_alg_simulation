@@ -16,12 +16,12 @@ using namespace std;
 const int NUM_GENERATIONS = 300;
 const int POPULATION_SIZE  = 200;
 const int NUM_STEPS = 300;
-const int NUM_TRIES = 10;
+const int NUM_TRIES = 4;
 
-const float INITIAL_ENERGY = 10.0f;
+const float INITIAL_ENERGY = 15.0f;
 
-const float ELITE_PROPORTION = 0.1f;
-const float MUTATION_PROPORTION = 0.5f;
+const float ELITE_PROPORTION = 0.15f;
+const float MUTATION_PROPORTION = 0.9f;
 
 const float SIM_PUNISH_FACTOR = 0.f;
 
@@ -239,7 +239,7 @@ void runGeneticAlgorithm() {
         
         // ==== 1. Evaluate population (simulate + fitness) ====
         for (int ind = 0; ind < POPULATION_SIZE; ind++) {
-            float totalFitness = 0.0f;
+            vector<float> fitnesses = {};
             for (int t = 0; t < NUM_TRIES; t++) {
                 World base = population[ind];   // keep rules/genome
                 base.cells.clear();
@@ -255,10 +255,10 @@ void runGeneticAlgorithm() {
                 }
 
                 // accumulate fitness over tries
-                totalFitness += calculateFitness(worldCopy);
+                fitnesses.push_back(calculateFitness(worldCopy));
             }
             // assign summed fitness
-            population[ind].fitness = totalFitness / static_cast<float>(NUM_TRIES);
+            population[ind].fitness = *std::min_element(fitnesses.begin(), fitnesses.end());
         }
 
         // ==== 2. Sort and log ====
