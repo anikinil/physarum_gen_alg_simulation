@@ -12,19 +12,19 @@ using namespace std;
 #include <regex>
 
 int NUM_GENERATIONS = 100;
-int POPULATION_SIZE  = 100;
-int NUM_STEPS = 100;
-int NUM_TRIES = 3;
+int POPULATION_SIZE  = 200;
+int NUM_STEPS = 300;
+int NUM_TRIES = 10;
 
 float INITIAL_ENERGY = 10.0f;
 
-float ELITE_PROPORTION = 0.2f;
-float MUTATION_PROPORTION = 0.1f;
+float ELITE_PROPORTION = 0.1f;
+float MUTATION_PROPORTION = 0.5f;
 
-const int NUM_FOODS = 2;
-const float FOOD_ENERGY = 10;
+const int NUM_FOODS = 15;
+const float FOOD_ENERGY = 4;
 const int MIN_FOOD_DIST = 1;
-const int MAX_FOOD_DIST = 3;
+const int MAX_FOOD_DIST = 6;
 
 const int STATE_SPACE = 256;
 const int ACTION_SPACE = 25;
@@ -70,8 +70,20 @@ vector<Food> getRandomizedFood() {
 
 // ---------------------------- FITNESS ----------------------------
 
+float totalCellEnergy(World& world) {
+    float energy = 0;
+    for (const Cell& cell: world.cells) {
+        energy += cell.energy;
+    }
+    return energy;
+}
+
+float totalCells(World& world) {
+    return static_cast<float>(world.cells.size());
+}
+
 float calculateFitness(World& world) {
-    return static_cast<float>(world.cells.size()); // total cells fitness
+    return totalCellEnergy(world) - 0.1 * totalCells(world);
 }
 
 void sortByFitness(vector<World>& population) {
@@ -204,8 +216,9 @@ void runGeneticAlgorithm() {
     generateInitialPopulation(population);
 
     for (int gen = 0; gen < NUM_GENERATIONS; gen++) {
-        cout << "Generation " << gen+1 << ":\n";
-
+        cout << "Generation " << gen+1 << "/" << NUM_GENERATIONS << "\n";
+        cout << "-----------------------------------\n";
+        
         // ==== 1. Evaluate population (simulate + fitness) ====
         for (int ind = 0; ind < POPULATION_SIZE; ind++) {
             float totalFitness = 0.0f;

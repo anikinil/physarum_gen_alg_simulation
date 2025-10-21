@@ -8,9 +8,11 @@ using namespace std;
 int WIN_WIDTH = 1500;
 int WIN_HEIGHT = 1000;
 
-int CELL_SIZE = 40;
+int CELL_SIZE = 60;
 
 int GEN = -1;
+
+float FPS = 10.0f;
 
 World readWorld() {
     ifstream file("best_individual.csv");
@@ -57,8 +59,7 @@ World readWorld() {
         entry >> x >> y >> e;
         foods.push_back({x, y, e});
     }
-
-    return World{{Cell{0,}}, foods, rules};
+    return World{{}, foods, rules};
 }
 
 void drawCells(sf::RenderWindow& window, vector<Cell>& cells) {
@@ -68,8 +69,9 @@ void drawCells(sf::RenderWindow& window, vector<Cell>& cells) {
     for (const Cell& cell : cells) {
         sf::RectangleShape shape(sf::Vector2f(CELL_SIZE - 2, CELL_SIZE - 2));
         shape.setPosition(middleX + cell.x * CELL_SIZE, middleY + cell.y * CELL_SIZE);
-        shape.setFillColor(sf::Color::Yellow);
-        shape.setOutlineColor(sf::Color::Yellow);
+        int brightness = static_cast<int>(std::min(255.0f, std::max(50.0f, cell.energy * 20.0f)));
+        shape.setFillColor(sf::Color(brightness, brightness, 0));
+        shape.setOutlineColor(sf::Color(brightness, brightness, 0));
         // shape.setOutlineThickness(1);
         window.draw(shape);
     }
@@ -82,18 +84,25 @@ void drawFoods(sf::RenderWindow& window, vector<Food>& foods) {
     for (const Food& food : foods) {
         sf::RectangleShape shape(sf::Vector2f(CELL_SIZE - 2, CELL_SIZE - 2));
         shape.setPosition(middleX + food.x * CELL_SIZE, middleY + food.y * CELL_SIZE);
-        shape.setFillColor(sf::Color::Magenta);
-        shape.setOutlineColor(sf::Color::Magenta);
+        int brightness = static_cast<int>(std::min(255.0f, std::max(0.0f, food.energy * 20.0f)));
+        shape.setFillColor(sf::Color(brightness, 0, brightness));
+        shape.setOutlineColor(sf::Color(brightness, 0, brightness));
         // shape.setOutlineThickness(1);
+
         window.draw(shape);
     }
 }
 
 
 void animate(World& world) {
+    
     sf::RenderWindow window(sf::VideoMode(WIN_WIDTH, WIN_HEIGHT), "Physarum Polycephalum");
 
+    sf::Clock clock;
+    const float targetFrameTime = 1.f / FPS;
+
     while (window.isOpen()) {
+        
         sf::Event event;
         while (window.pollEvent(event))
             if (event.type == sf::Event::Closed)
@@ -105,15 +114,18 @@ void animate(World& world) {
         drawFoods(window, world.foods);
 
         window.display();
+
+        sf::sleep(sf::seconds(targetFrameTime) - clock.getElapsedTime());
+        clock.restart();
         
         world = world.step();
-        cout << world.cells[0].x << " - " << world.cells[0].y << endl;
     }
 }
 
 int main() {
 
     World world = readWorld();
+    world.cells.push_back(Cell{0, 0, 10.0f});
 
     cout << "Rules:" << endl;
     int count = 0;
@@ -126,6 +138,11 @@ int main() {
     cout << "Foods:" << endl;
     for (const Food& food : world.foods) {
         cout << "Food at (" << food.x << ", " << food.y << ") with energy " << food.energy << endl;
+    }
+
+    cout << "Cells:" << endl;
+    for (const Cell& cell : world.cells) {
+        cout << "Cell at (" << cell.x << ", " << cell.y << ") with energy " << cell.energy << endl;
     }
 
     animate(world);
