@@ -46,7 +46,7 @@ def draw_food(screen, x, y, energy):
         screen.blit(text, (SCREEN_WIDTH//2 + x * CELL_SIZE + 5, SCREEN_HEIGHT//2 + y * CELL_SIZE + 5))
 
 def draw_world_frame(screen, world_state):
-    # TODO
+    
     pass
 
 def plot_fitness_history():

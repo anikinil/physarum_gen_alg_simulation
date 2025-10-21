@@ -1,4 +1,4 @@
-#include "physarum.h"
+#include "physarum.hpp"
 #include <iostream>
 #include <random>
 #include <cstdint>
@@ -87,7 +87,7 @@ void sortByFitness(vector<World>& population) {
 void saveBestRules(const vector<World>& population, int generation) {
     const World& best = population.front();
 
-    std::ofstream file("best_rules.csv", std::ios::app);
+    std::ofstream file("best_individual.csv", std::ios::app);
     if (file.tellp() == 0) file << "generation;rules;foods\n";
 
     file << generation << ";";
@@ -97,7 +97,8 @@ void saveBestRules(const vector<World>& population, int generation) {
     }
     file << ";";
     for (const auto& food : best.foods) {
-        file << food.x << " " << food.y << " " << food.energy << ",";
+        file << food.x << " " << food.y << " " << food.energy;
+        if (&food != &best.foods.back()) file << ",";
     }
     file << "\n";   
 }
