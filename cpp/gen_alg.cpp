@@ -7,26 +7,30 @@ using namespace std;
 
 #include <fstream>
 
-
 #include <filesystem>
 #include <regex>
 
-int NUM_GENERATIONS = 100;
-int POPULATION_SIZE  = 200;
-int NUM_STEPS = 300;
-int NUM_TRIES = 10;
+#include <chrono>
 
-float INITIAL_ENERGY = 10.0f;
 
-float ELITE_PROPORTION = 0.1f;
-float MUTATION_PROPORTION = 0.5f;
+const int NUM_GENERATIONS = 300;
+const int POPULATION_SIZE  = 200;
+const int NUM_STEPS = 300;
+const int NUM_TRIES = 10;
 
-const int NUM_FOODS = 15;
+const float INITIAL_ENERGY = 10.0f;
+
+const float ELITE_PROPORTION = 0.1f;
+const float MUTATION_PROPORTION = 0.5f;
+
+const float SIM_PUNISH_FACTOR = 0.f;
+
+const int NUM_FOODS = 30;
 const float FOOD_ENERGY = 4;
-const int MIN_FOOD_DIST = 1;
-const int MAX_FOOD_DIST = 6;
 
-const int STATE_SPACE = 256;
+const int MIN_FOOD_DIST = 3;
+const int MAX_FOOD_DIST = 10;
+
 const int ACTION_SPACE = 25;
 
 
@@ -159,9 +163,9 @@ vector<World> crossover(const vector<World>& parents) {
         const World& parent2 = parents[(i + 1) % numParents]; // wrap-around pairing
 
         World child;
-        child.rules.resize(NUM_STATES);
+        child.rules.resize(STATE_SPACE);
 
-        for (int j = 0; j < NUM_STATES; j++) {
+        for (int j = 0; j < STATE_SPACE; j++) {
             // choose gene from parent1 or parent2
             child.rules[j] = getRandomCoinFlip() ? parent1.rules[j] : parent2.rules[j];
         }
@@ -172,12 +176,14 @@ vector<World> crossover(const vector<World>& parents) {
     return children;
 }
 
-void mutate(vector<World>& inds) {
+void mutate(vector<World>& inds, float& similarityPunishment) {
     std::random_device rd;
     std::mt19937 generate(rd());
     std::uniform_int_distribution<uint8_t> actionDist(0, 24);
-    int numMutations = NUM_STATES * MUTATION_PROPORTION;
-    std::vector<int> v(NUM_STATES);
+
+
+    int numMutations = STATE_SPACE * MUTATION_PROPORTION * similarityPunishment;
+    std::vector<int> v(STATE_SPACE);
     iota(v.begin(), v.end(), 0); // Fill with [0, 1, ..., size-1]
     std::mt19937 rng(std::random_device{}());
     for (World & ind : inds) {
@@ -194,13 +200,19 @@ vector<World> generateNextPopulation(const vector<World>& population) {
     vector<World> elite = selectElite(population);
     offsprings.insert(offsprings.end(), elite.begin(), elite.end());
     vector<World> eliteChildren = crossover(elite);
-    mutate(eliteChildren);
+
+    float similarity = population[0].fitness / population[POPULATION_SIZE / 2].fitness;
+    float similarityPunishment = std::max(1.0f, similarity * SIM_PUNISH_FACTOR);
+
+    cout << "Similarity punishment: " << similarityPunishment << "\n";
+
+    mutate(eliteChildren, similarityPunishment);
     offsprings.insert(offsprings.end(), eliteChildren.begin(), eliteChildren.end());
     int leftoverSize = POPULATION_SIZE * (1 - ELITE_PROPORTION*2);
 
     vector<World> leftover(population.end() - leftoverSize, population.end());
 
-    mutate(leftover);
+    mutate(leftover, similarityPunishment);
     offsprings.insert(offsprings.end(), leftover.begin(), leftover.end());
     for (World & o : offsprings) { 
         o.cells = { {0, 0, INITIAL_ENERGY, 'n'} };
@@ -215,7 +227,13 @@ void runGeneticAlgorithm() {
     vector<World> population;
     generateInitialPopulation(population);
 
+    // For timing
+    vector<chrono::duration<double>> gen_durations;
+
     for (int gen = 0; gen < NUM_GENERATIONS; gen++) {
+        
+        auto gen_start = std::chrono::high_resolution_clock::now();
+
         cout << "Generation " << gen+1 << "/" << NUM_GENERATIONS << "\n";
         cout << "-----------------------------------\n";
         
@@ -261,10 +279,24 @@ void runGeneticAlgorithm() {
         saveBestRules(population, gen);
         saveFitnessHistory(population, gen);
         
-        cout << "-----------------------------------\n";
-
         // ==== 4. Next generation ====
         population = generateNextPopulation(population);
+
+        // ==== 5. Timing and ETA ====
+        // Measure generation time
+        auto gen_end = chrono::high_resolution_clock::now();
+        gen_durations.push_back(gen_end - gen_start);
+        // cout << "Generation time: " << gen_durations.back().count() << " seconds.\n";
+
+        // Estimate remaining time
+        if (gen > 0) {
+            double avg_gen_time = std::accumulate(gen_durations.begin(), gen_durations.end(), 0.0, [](double sum, const auto& d) { return sum + d.count(); }) / gen_durations.size();
+            cout << "Estimated time remaining: "
+                 << (NUM_GENERATIONS - gen - 1) * avg_gen_time / 60.0
+                 << " minutes\n";
+        }
+
+        cout << "------------------------\n";
     }
 }
 

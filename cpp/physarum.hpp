@@ -24,7 +24,7 @@ float MIN_GROWTH_ENERGY = 3;
 float ENERGY_PORTION = 0.2;
 float MIN_ENERGY_TO_PASS = 0.1;
 
-float NUM_STATES = 256;
+float STATE_SPACE = 4096; // 256 * 2 ^ 4
 
 struct Cell {
     int x;
@@ -69,7 +69,7 @@ struct World {
 
             // cout << "debug: cell at (" << cell.x << ", " << cell.y << ") with energy " << cell.energy << "\n";
 
-            uint8_t state = getCellState(cell);
+            uint16_t state = getCellState(cell);
             uint8_t action = getNextAction(state);
 
             char growthDir = decodeGrowthDir(action);
@@ -153,7 +153,7 @@ struct World {
 
             // cout << "debug: cell at (" << cell.x << ", " << cell.y << ") with energy " << cell.energy << "\n";
 
-            uint8_t state = getCellState(cell);
+            uint16_t state = getCellState(cell);
             uint8_t action = getNextAction(state);
             
             char energyDir = decodeEnergyDir(action);
@@ -248,11 +248,7 @@ struct World {
         return newWorld;
     }
 
-    uint8_t getNextAction(uint8_t stateCode) {
-
-        // cout << "GET NEXT ACTION - statecode: " << static_cast<int>(stateCode) << '\n';
-        // cout << "RULES SIZE: " << rules.size() << '\n';
-        // cout << "GET NEXT ACTION - ACTION: " << static_cast<int>(rules[stateCode]) << '\n';
+    uint8_t getNextAction(uint16_t stateCode) {
 
         return rules[stateCode];
     }
@@ -265,9 +261,9 @@ struct World {
         return dirs[actionCode % 5];
     }
 
-    uint8_t getCellState(Cell cell) {
+    uint16_t getCellState(Cell cell) {
         
-        uint8_t state = 0;
+        uint16_t state = 0;
         
         for(Cell & c : cells) {
             if (c.x == cell.x - 1 && c.y == cell.y) { // neighbor left
@@ -297,7 +293,23 @@ struct World {
                     state += 1 << 7;
                 }
                 continue;
-            } // no neighbors, no energy received -> 0
+            }
+            if (c.x == cell.x - 1 && c.y == cell.y - 1) { // neighbor left up
+                state += 1 << 8;
+                continue;
+            }
+            if (c.x == cell.x + 1 && c.y == cell.y - 1) { // neighbor right up
+                state += 1 << 9;
+                continue;
+            }
+            if (c.x == cell.x - 1 && c.y == cell.y + 1) { // neighbor left down
+                state += 1 << 10;
+                continue;
+            }
+            if (c.x == cell.x + 1 && c.y == cell.y + 1) { // neighbor right down
+                state += 1 << 11;
+                continue;
+            } // no neighbors, no energy passed -> 0
         }
 
         return state;

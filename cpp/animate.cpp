@@ -8,11 +8,11 @@ using namespace std;
 int WIN_WIDTH = 1500;
 int WIN_HEIGHT = 1000;
 
-int CELL_SIZE = 60;
+int CELL_SIZE = 30;
 
 int GEN = -1;
 
-float FPS = 10.0f;
+float FPS = 5.0f;
 
 World readWorld() {
     ifstream file("best_individual.csv");
@@ -127,23 +127,23 @@ int main() {
     World world = readWorld();
     world.cells.push_back(Cell{0, 0, 10.0f});
 
-    cout << "Rules:" << endl;
-    int count = 0;
-    for (int rule : world.rules) {
-        cout << count << ": " << static_cast<int>(rule) << ", ";
-        count++;
-    }
-    cout << endl;
+    // cout << "Rules:" << endl;
+    // int count = 0;
+    // for (int rule : world.rules) {
+    //     cout << count << ": " << static_cast<int>(rule) << ", ";
+    //     count++;
+    // }
+    // cout << endl;
 
-    cout << "Foods:" << endl;
-    for (const Food& food : world.foods) {
-        cout << "Food at (" << food.x << ", " << food.y << ") with energy " << food.energy << endl;
-    }
+    // cout << "Foods:" << endl;
+    // for (const Food& food : world.foods) {
+    //     cout << "Food at (" << food.x << ", " << food.y << ") with energy " << food.energy << endl;
+    // }
 
-    cout << "Cells:" << endl;
-    for (const Cell& cell : world.cells) {
-        cout << "Cell at (" << cell.x << ", " << cell.y << ") with energy " << cell.energy << endl;
-    }
+    // cout << "Cells:" << endl;
+    // for (const Cell& cell : world.cells) {
+    //     cout << "Cell at (" << cell.x << ", " << cell.y << ") with energy " << cell.energy << endl;
+    // }
 
     animate(world);
 
