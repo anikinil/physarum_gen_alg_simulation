@@ -13,25 +13,23 @@ using namespace std;
 #include <chrono>
 
 
-const int NUM_GENERATIONS = 300;
-const int POPULATION_SIZE  = 200;
-const int NUM_STEPS = 300;
-const int NUM_TRIES = 4;
+const int NUM_GENERATIONS = 1000;
+const int POPULATION_SIZE  = 100;
+const int NUM_STEPS = 100;
+const int NUM_TRIES = 50;
 
-const float INITIAL_ENERGY = 15.0f;
+const float INITIAL_ENERGY = 100.0f;
 
-const float ELITE_PROPORTION = 0.15f;
-const float MUTATION_PROPORTION = 0.9f;
+const float ELITE_PROPORTION = 0.1f;
+const float MUTATION_PROB = 0.1f;
 
-const float SIM_PUNISH_FACTOR = 0.f;
+// const float SIM_PUNISH_FACTOR = 0.9f;
 
-const int NUM_FOODS = 30;
-const float FOOD_ENERGY = 4;
+const int NUM_FOODS = 300;
+const float FOOD_ENERGY = 1.0f;
 
-const int MIN_FOOD_DIST = 3;
+const int MIN_FOOD_DIST = 2;
 const int MAX_FOOD_DIST = 10;
-
-const int ACTION_SPACE = 25;
 
 
 // ------------------- RANDOM UTILITIES -------------------
@@ -74,6 +72,40 @@ vector<Food> getRandomizedFood() {
 
 // ---------------------------- FITNESS ----------------------------
 
+float energyCentralityFitness(World& world) {
+    if (world.cells.empty()) return 0.0f;
+
+    float totalDist = 0.0f;
+    for (const Cell& cell : world.cells) {
+        totalDist += std::sqrt(cell.x * cell.x + cell.y * cell.y);
+    }
+    for (const Food& food : world.foods) {
+        totalDist += std::sqrt(food.x * food.x + food.y * food.y);
+    }
+
+    float avgDist = totalDist / (world.cells.size() + world.foods.size());
+    return 1.0f / (1.0f + avgDist); // higher fitness for lower average distance
+}
+
+float spreadFitness(World& world) {
+    if (world.cells.empty()) return 0.0f;
+
+    int minX = world.cells[0].x;
+    int maxX = world.cells[0].x;
+    int minY = world.cells[0].y;
+    int maxY = world.cells[0].y;
+
+    for (const Cell& cell : world.cells) {
+        if (cell.x < minX) minX = cell.x;
+        if (cell.x > maxX) maxX = cell.x;
+        if (cell.y < minY) minY = cell.y;
+        if (cell.y > maxY) maxY = cell.y;
+    }
+
+    float spread = static_cast<float>((maxX - minX) + (maxY - minY));
+    return spread;
+}
+
 float totalCellEnergy(World& world) {
     float energy = 0;
     for (const Cell& cell: world.cells) {
@@ -82,19 +114,29 @@ float totalCellEnergy(World& world) {
     return energy;
 }
 
+float totalAcquiredEnergy(World& world) {
+    float energy = 0;
+    for (const Cell& cell: world.cells) {
+        energy += cell.energy;
+    }
+    return std::round((energy - INITIAL_ENERGY) * 10.0f) / 10.0f;
+}
+
 float totalCells(World& world) {
     return static_cast<float>(world.cells.size());
 }
 
-float calculateFitness(World& world) {
-    return totalCellEnergy(world) - 0.1 * totalCells(world);
-}
-
 void sortByFitness(vector<World>& population) {
     std::sort(population.begin(), population.end(),
-        [](const World& a, const World& b) {
-            return a.fitness > b.fitness;
-        });
+    [](const World& a, const World& b) {
+        return a.fitness > b.fitness;
+    });
+}
+
+float calculateFitness(World& world) {
+    return totalAcquiredEnergy(world);
+    // return spreadFitness(world);
+    // return energyCentralityFitness(world);
 }
 
 // ------------------- GENETIC ALGORITHM LOGGING -------------------
@@ -167,7 +209,8 @@ vector<World> crossover(const vector<World>& parents) {
 
         for (int j = 0; j < STATE_SPACE; j++) {
             // choose gene from parent1 or parent2
-            child.rules[j] = getRandomCoinFlip() ? parent1.rules[j] : parent2.rules[j];
+            std::bernoulli_distribution takeFromP1(0.5);
+            child.rules[j] = takeFromP1(globalRng()) ? parent1.rules[j] : parent2.rules[j];
         }
 
         children.push_back(child);
@@ -176,21 +219,16 @@ vector<World> crossover(const vector<World>& parents) {
     return children;
 }
 
-void mutate(vector<World>& inds, float& similarityPunishment) {
+void mutate(vector<World>& inds, const float& mutationProb) {
     std::random_device rd;
     std::mt19937 generate(rd());
     std::uniform_int_distribution<uint8_t> actionDist(0, 24);
-
-
-    int numMutations = STATE_SPACE * MUTATION_PROPORTION * similarityPunishment;
-    std::vector<int> v(STATE_SPACE);
-    iota(v.begin(), v.end(), 0); // Fill with [0, 1, ..., size-1]
     std::mt19937 rng(std::random_device{}());
     for (World & ind : inds) {
-        std::shuffle(v.begin(), v.end(), rng); // Shuffle the range
-        vector<int> indexes(v.begin(), v.begin() + numMutations);
-        for (int idx : indexes) { 
-            ind.rules[idx] = actionDist(generate);
+        for (uint8_t & r : ind.rules) { 
+            if (getRandomCoinFlip() < mutationProb) {
+                r = actionDist(rng);
+            }
         }
     }
 }
@@ -201,18 +239,18 @@ vector<World> generateNextPopulation(const vector<World>& population) {
     offsprings.insert(offsprings.end(), elite.begin(), elite.end());
     vector<World> eliteChildren = crossover(elite);
 
-    float similarity = population[0].fitness / population[POPULATION_SIZE / 2].fitness;
-    float similarityPunishment = std::max(1.0f, similarity * SIM_PUNISH_FACTOR);
-
-    cout << "Similarity punishment: " << similarityPunishment << "\n";
-
-    mutate(eliteChildren, similarityPunishment);
+    // float similarity = population[POPULATION_SIZE / 2].fitness / population[0].fitness;
+    // float similarityPunishment = std::max(1.0f, similarity * SIM_PUNISH_FACTOR);
+    // cout << "Similarity punishment: " << similarityPunishment << "\n";
+    // float mutationProb = std::min(1.0f, (MUTATION_PROPORTION * similarityPunishment));
+    cout << "Mutation probability: " << MUTATION_PROB << "\n";
+    mutate(eliteChildren, MUTATION_PROB);
     offsprings.insert(offsprings.end(), eliteChildren.begin(), eliteChildren.end());
     int leftoverSize = POPULATION_SIZE * (1 - ELITE_PROPORTION*2);
 
     vector<World> leftover(population.end() - leftoverSize, population.end());
 
-    mutate(leftover, similarityPunishment);
+    mutate(leftover, MUTATION_PROB);
     offsprings.insert(offsprings.end(), leftover.begin(), leftover.end());
     for (World & o : offsprings) { 
         o.cells = { {0, 0, INITIAL_ENERGY, 'n'} };
@@ -240,6 +278,7 @@ void runGeneticAlgorithm() {
         // ==== 1. Evaluate population (simulate + fitness) ====
         for (int ind = 0; ind < POPULATION_SIZE; ind++) {
             vector<float> fitnesses = {};
+            bool failed_early = false;
             for (int t = 0; t < NUM_TRIES; t++) {
                 World base = population[ind];   // keep rules/genome
                 base.cells.clear();
@@ -255,8 +294,21 @@ void runGeneticAlgorithm() {
                 }
 
                 // accumulate fitness over tries
-                fitnesses.push_back(calculateFitness(worldCopy));
+                float fitness = calculateFitness(worldCopy);
+                if (fitness >= 5) {
+                    cout << "Fitness " << fitness << endl;
+                }
+                // early stopping if no positive fitness achieved
+                if (t >= 5 && *std::max_element(fitnesses.begin(), fitnesses.begin() + t) <= 0) {
+                    cout << "Early stopping for individual " << ind << endl;
+                    population[ind].fitness = -1;
+                    failed_early = true;
+                    break;
+                } else {
+                    fitnesses.push_back(fitness);
+                }
             }
+            if (failed_early) continue;
             // assign summed fitness
             population[ind].fitness = *std::min_element(fitnesses.begin(), fitnesses.end());
         }

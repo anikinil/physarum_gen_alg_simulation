@@ -1,19 +1,22 @@
 #include <SFML/Graphics.hpp>
 #include <fstream>
 #include <sstream>
-#include <gen_alg.cpp>
 #include "physarum.hpp"
+#include <numeric>
 
 using namespace std;
 
-int WIN_WIDTH = 1500;
-int WIN_HEIGHT = 1000;
+int WIN_WIDTH = 2000;
+int WIN_HEIGHT = 1500;
 
 int CELL_SIZE = 30;
 
-int GEN = -1;
+int GEN = -1; // -1 for last generation
 
-float FPS = 5.0f;
+float FPS = 8.0f;
+
+float INITIAL_ENERGY = 400.0f; // TODO move to a header
+float NUM_STEPS = 100;     // TODO move to a header
 
 World readWorld() {
     ifstream file("best_individual.csv");
@@ -73,7 +76,7 @@ void drawCells(sf::RenderWindow& window, vector<Cell>& cells) {
         int brightness = static_cast<int>(std::min(255.0f, std::max(50.0f, cell.energy * 40.0f)));
         shape.setFillColor(sf::Color(brightness, brightness, 0));
         shape.setOutlineColor(sf::Color::Red);
-        if (cell.energy >= MIN_GROWTH_ENERGY) shape.setOutlineThickness(2);
+        if (cell.energy >= MIN_GROWTH_ENERGY) shape.setOutlineThickness(3);
         window.draw(shape);
     }
 }
@@ -102,8 +105,9 @@ void animate(World& world) {
     sf::Clock clock;
     const float targetFrameTime = 1.f / FPS;
 
+    int step = 0;
     while (window.isOpen()) {
-        
+
         sf::Event event;
         while (window.pollEvent(event))
             if (event.type == sf::Event::Closed)
@@ -116,10 +120,26 @@ void animate(World& world) {
 
         window.display();
 
-        sf::sleep(sf::seconds(targetFrameTime) - clock.getElapsedTime());
-        clock.restart();
         
-        world = world.step();
+        if (step < NUM_STEPS) {
+            window.setTitle("Physarum Polycephalum - Step: "
+                + std::to_string(step)
+                + "/" + std::to_string(static_cast<int>(NUM_STEPS))
+                + " | Energy: " + std::to_string(accumulate(
+                    world.cells.begin(), world.cells.end(), 0.0f,
+                    [](float sum, const Cell& c){ return sum + c.energy; })));
+            world = world.step();
+            step++;
+            sf::sleep(sf::seconds(targetFrameTime) - clock.getElapsedTime());
+            clock.restart();
+        } else {
+            window.setTitle("Physarum Polycephalum - Finished at step: " 
+                + std::to_string(step)
+                + "/" + std::to_string(static_cast<int>(NUM_STEPS))
+                + " | Energy: " + std::to_string(accumulate(
+                    world.cells.begin(), world.cells.end(), 0.0f,
+                    [](float sum, const Cell& c){ return sum + c.energy; })));
+        }
     }
 }
 

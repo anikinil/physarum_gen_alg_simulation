@@ -17,14 +17,14 @@ namespace std {
     };
 }
 
-
 vector<char> dirs = {'n', 'l', 'r', 'u', 'd'};
 
-float MIN_GROWTH_ENERGY = 3;
+float MIN_GROWTH_ENERGY = 10;
 float ENERGY_PORTION = 0.2;
-float MIN_ENERGY_TO_PASS = 0.1;
+float MIN_ENERGY_TO_PASS = 0.5;
 
-float STATE_SPACE = 4096; // 256 * 2 ^ 4
+const int STATE_SPACE = 4096; // 256 * 2 ^ 4
+const int ACTION_SPACE = 25;
 
 struct Cell {
     int x;
@@ -58,16 +58,11 @@ struct World {
 
     World updateGrowth() {
 
-        // cout << "UPDATE_GROWTH" << "\n";
-
         World newWorld;
         newWorld.rules = rules;
         newWorld.foods = foods;
 
-        // cout << "RULES SIZE:  " << rules.size() << '\n';
         for (Cell & cell : cells) {
-
-            // cout << "debug: cell at (" << cell.x << ", " << cell.y << ") with energy " << cell.energy << "\n";
 
             uint16_t state = getCellState(cell);
             uint8_t action = getNextAction(state);
@@ -87,7 +82,6 @@ struct World {
                 newWorld.cells.push_back(updatedOrigCell);
                 continue;
             }
-            
             
             Cell updatedOrigCell = cell;
             updatedOrigCell.energy /= 2;
@@ -147,11 +141,7 @@ struct World {
         newWorld.rules = rules;
         newWorld.foods = foods;
         
-        // cout << "UPDATE_ENERGY" << "\n";
-        
         for (Cell & cell : cells) {
-
-            // cout << "debug: cell at (" << cell.x << ", " << cell.y << ") with energy " << cell.energy << "\n";
 
             uint16_t state = getCellState(cell);
             uint8_t action = getNextAction(state);
@@ -186,11 +176,7 @@ struct World {
             newWorld.cells.push_back(Cell{targetX, targetY, cell.energy * ENERGY_PORTION, 'n'});
         }
 
-        // cout << "Num rules: " << newWorld.rules.size() << '\n';
         newWorld.cells = resolveEnergyConflicts(newWorld.cells);
-        // cout << "After energy conflict resolution:\n";
-        // cout << "Num rules: " << newWorld.rules.size() << '\n';
-
 
         return newWorld;
     }
