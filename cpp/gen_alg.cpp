@@ -21,7 +21,7 @@ const int NUM_TRIES = 50;
 const float INITIAL_ENERGY = 100.0f;
 
 const float ELITE_PROPORTION = 0.1f;
-const float MUTATION_PROB = 0.1f;
+const float MUTATION_PROB = 0.01f;
 
 // const float SIM_PUNISH_FACTOR = 0.9f;
 
@@ -295,12 +295,9 @@ void runGeneticAlgorithm() {
 
                 // accumulate fitness over tries
                 float fitness = calculateFitness(worldCopy);
-                if (fitness >= 5) {
-                    cout << "Fitness " << fitness << endl;
-                }
                 // early stopping if no positive fitness achieved
                 if (t >= 5 && *std::max_element(fitnesses.begin(), fitnesses.begin() + t) <= 0) {
-                    cout << "Early stopping for individual " << ind << endl;
+                    // cout << "Early stopping for individual " << ind << endl;
                     population[ind].fitness = -1;
                     failed_early = true;
                     break;

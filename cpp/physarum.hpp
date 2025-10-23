@@ -212,6 +212,28 @@ struct World {
 
     World updateFood() {
 
+
+
+
+
+        /////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////
+        /////////////////// TEST THIS ///////////////////////////////
+        /////////////////// AND THEN COMMIT /////////////////////////
+        /////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
         World newWorld;
         newWorld.rules = rules;
         newWorld.cells = cells;
@@ -220,17 +242,25 @@ struct World {
         for (Food & food : newWorld.foods) {
             if (food.energy > 0) {
                 for (Cell & cell : newWorld.cells) {
-    
-                    if ((food.x == cell.x && abs(food.y - cell.y) == 1) 
+
+                    if ((food.x == cell.x && abs(food.y - cell.y) == 1)
                     || (abs(food.x - cell.x) == 1 && food.y == cell.y)) {
-    
+
                         food.energy -= 1;
                         cell.energy += 1;
+                        if (food.energy <= 0) break;
                     }
                 }
             }
         }
-        
+
+        // remove depleted foods
+        vector<Food> remainingFoods;
+        for (const Food & f : newWorld.foods) {
+            if (f.energy > 0) remainingFoods.push_back(f);
+        }
+        newWorld.foods = std::move(remainingFoods);
+
         return newWorld;
     }
 

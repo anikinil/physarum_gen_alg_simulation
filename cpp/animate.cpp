@@ -11,14 +11,13 @@ int WIN_HEIGHT = 1500;
 
 int CELL_SIZE = 30;
 
-int GEN = -1; // -1 for last generation
-
 float FPS = 8.0f;
 
 float INITIAL_ENERGY = 400.0f; // TODO move to a header
 float NUM_STEPS = 100;     // TODO move to a header
 
-World readWorld() {
+World readWorld(int gen) {
+
     ifstream file("best_individual.csv");
     if (!file) throw runtime_error("Could not open file");
 
@@ -28,9 +27,9 @@ World readWorld() {
     string selectedLine, lastLine;
     while (getline(file, line)) {
         lastLine = line;
-        if (GEN != -1) {
+        if (gen != -1) {
             string genStr = line.substr(0, line.find(';'));
-            if (stoi(genStr) == GEN) {
+            if (stoi(genStr) == gen) {
                 selectedLine = line;
                 break;
             }
@@ -38,7 +37,7 @@ World readWorld() {
     }
 
     if (selectedLine.empty()) {
-        cout << "GEN not specified or not found, using last line." << endl;
+        cout << "Generation not specified or not found, using last line." << endl;
         selectedLine = lastLine;
     }
 
@@ -143,9 +142,11 @@ void animate(World& world) {
     }
 }
 
-int main() {
+int main(int argc, char*argv[]) {
 
-    World world = readWorld();
+    int gen = atoi(argv[0]);
+
+    World world = readWorld(gen);
     world.cells.push_back(Cell{0, 0, INITIAL_ENERGY, 'n'});
 
     // cout << "Rules:" << endl;
