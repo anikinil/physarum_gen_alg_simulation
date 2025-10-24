@@ -20,13 +20,13 @@ const int NUM_TRIES = 50;
 
 const float INITIAL_ENERGY = 100.0f;
 
-const float ELITE_PROPORTION = 0.1f;
-const float MUTATION_PROB = 0.01f;
+const float ELITE_PROPORTION = 0.25f;
+const float MUTATION_PROB = 0.3f;
 
 // const float SIM_PUNISH_FACTOR = 0.9f;
 
-const int NUM_FOODS = 300;
-const float FOOD_ENERGY = 1.0f;
+const int NUM_FOODS = 100;
+const float FOOD_ENERGY = 10.0f;
 
 const int MIN_FOOD_DIST = 2;
 const int MAX_FOOD_DIST = 10;
@@ -106,7 +106,7 @@ float spreadFitness(World& world) {
     return spread;
 }
 
-float totalCellEnergy(World& world) {
+float totalCellsEnergy(World& world) {
     float energy = 0;
     for (const Cell& cell: world.cells) {
         energy += cell.energy;
@@ -134,7 +134,7 @@ void sortByFitness(vector<World>& population) {
 }
 
 float calculateFitness(World& world) {
-    return totalAcquiredEnergy(world);
+    return totalAcquiredEnergy(world) - 0.01 * totalCells(world);
     // return spreadFitness(world);
     // return energyCentralityFitness(world);
 }
@@ -298,7 +298,7 @@ void runGeneticAlgorithm() {
                 // early stopping if no positive fitness achieved
                 if (t >= 5 && *std::max_element(fitnesses.begin(), fitnesses.begin() + t) <= 0) {
                     // cout << "Early stopping for individual " << ind << endl;
-                    population[ind].fitness = -1;
+                    population[ind].fitness = -10;
                     failed_early = true;
                     break;
                 } else {
@@ -307,7 +307,7 @@ void runGeneticAlgorithm() {
             }
             if (failed_early) continue;
             // assign summed fitness
-            population[ind].fitness = *std::min_element(fitnesses.begin(), fitnesses.end());
+            population[ind].fitness = accumulate(fitnesses.begin(), fitnesses.end(), 0.0f) / fitnesses.size();
         }
 
         // ==== 2. Sort and log ====

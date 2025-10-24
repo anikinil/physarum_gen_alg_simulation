@@ -13,7 +13,7 @@ int CELL_SIZE = 30;
 
 float FPS = 8.0f;
 
-float INITIAL_ENERGY = 400.0f; // TODO move to a header
+float INITIAL_ENERGY = 100.0f; // TODO move to a header
 float NUM_STEPS = 100;     // TODO move to a header
 
 World readWorld(int gen) {
@@ -72,7 +72,7 @@ void drawCells(sf::RenderWindow& window, vector<Cell>& cells) {
     for (const Cell& cell : cells) {
         sf::RectangleShape shape(sf::Vector2f(CELL_SIZE - 2, CELL_SIZE - 2));
         shape.setPosition(middleX + cell.x * CELL_SIZE, middleY + cell.y * CELL_SIZE);
-        int brightness = static_cast<int>(std::min(255.0f, std::max(50.0f, cell.energy * 40.0f)));
+        int brightness = static_cast<int>(std::min(255.0f, std::max(50.0f, cell.energy * INITIAL_ENERGY / 10)));
         shape.setFillColor(sf::Color(brightness, brightness, 0));
         shape.setOutlineColor(sf::Color::Red);
         if (cell.energy >= MIN_GROWTH_ENERGY) shape.setOutlineThickness(3);
@@ -87,7 +87,7 @@ void drawFoods(sf::RenderWindow& window, vector<Food>& foods) {
     for (const Food& food : foods) {
         sf::RectangleShape shape(sf::Vector2f(CELL_SIZE - 2, CELL_SIZE - 2));
         shape.setPosition(middleX + food.x * CELL_SIZE, middleY + food.y * CELL_SIZE);
-        int brightness = static_cast<int>(std::min(255.0f, std::max(0.0f, food.energy * 20.0f)));
+        int brightness = static_cast<int>(std::min(255.0f, std::max(100.0f, food.energy * 1.0f)));
         shape.setFillColor(sf::Color(brightness, 0, brightness));
         shape.setOutlineColor(sf::Color(brightness, 0, brightness));
         // shape.setOutlineThickness(1);
