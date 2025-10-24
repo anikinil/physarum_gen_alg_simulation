@@ -1,7 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include <fstream>
 #include <sstream>
-#include "physarum.hpp"
+#include "gen_alg.hpp"
 #include <numeric>
 
 using namespace std;
@@ -11,10 +11,7 @@ int WIN_HEIGHT = 1500;
 
 int CELL_SIZE = 30;
 
-float FPS = 8.0f;
-
-float INITIAL_ENERGY = 100.0f; // TODO move to a header
-float NUM_STEPS = 100;     // TODO move to a header
+float FPS = 15.0f;
 
 World readWorld(int gen) {
 
@@ -52,17 +49,8 @@ World readWorld(int gen) {
     stringstream rulesStream(rulesStr);
     for (string token; getline(rulesStream, token, ' ');)
         if (!token.empty()) rules.push_back(static_cast<uint8_t>(stoi(token)));
-
-    vector<Food> foods;
-    stringstream foodsStream(foodsStr);
-    for (string token; getline(foodsStream, token, ',');) {
-        if (token.empty()) continue;
-        stringstream entry(token);
-        int x, y; float e;
-        entry >> x >> y >> e;
-        foods.push_back({x, y, e});
-    }
-    return World{{}, foods, rules};
+    
+    return World{{}, {}, rules};
 }
 
 void drawCells(sf::RenderWindow& window, vector<Cell>& cells) {
@@ -148,6 +136,8 @@ int main(int argc, char*argv[]) {
 
     World world = readWorld(gen);
     world.cells.push_back(Cell{0, 0, INITIAL_ENERGY, 'n'});
+    vector<Food> newFoods = getRandomizedFood();
+    world.foods.insert(world.foods.end(), newFoods.begin(), newFoods.end());
 
     // cout << "Rules:" << endl;
     // int count = 0;

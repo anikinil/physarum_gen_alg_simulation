@@ -1,4 +1,4 @@
-#include "physarum.hpp"
+#include "gen_alg.hpp"
 #include <iostream>
 #include <random>
 #include <cstdint>
@@ -12,82 +12,21 @@ using namespace std;
 
 #include <chrono>
 
-
-const int NUM_GENERATIONS = 1000;
-const int POPULATION_SIZE  = 100;
-const int NUM_STEPS = 100;
-const int NUM_TRIES = 50;
-
-const float INITIAL_ENERGY = 100.0f;
-
-const float ELITE_PROPORTION = 0.25f;
-const float MUTATION_PROB = 0.3f;
-
-// const float SIM_PUNISH_FACTOR = 0.9f;
-
-const int NUM_FOODS = 100;
-const float FOOD_ENERGY = 10.0f;
-
-const int MIN_FOOD_DIST = 2;
-const int MAX_FOOD_DIST = 10;
-
-
-// ------------------- RANDOM UTILITIES -------------------
-
-static std::mt19937& globalRng() {
-    static std::random_device rd;
-    static std::mt19937 g(rd());
-    return g;
-}
-
-int randInt(int a, int b) {
-    std::uniform_int_distribution<int> dist(a, b);
-    return dist(globalRng());
-}
-
-uint8_t randAction() {
-    std::uniform_int_distribution<int> dist(0, ACTION_SPACE - 1);
-    return static_cast<uint8_t>(dist(globalRng()));
-}
-
-int getRandomCoinFlip() {
-    std::uniform_int_distribution<int> dist(0, 1);
-    return dist(globalRng());
-}
-
-vector<Food> getRandomizedFood() {
-    std::uniform_int_distribution<int> dist(MIN_FOOD_DIST, MAX_FOOD_DIST);
-    vector<Food> foods;
-    for (int i = 0; i < NUM_FOODS; i++) {
-        int dx = dist(globalRng());
-        int dy = dist(globalRng());
-        foods.push_back(Food{
-            getRandomCoinFlip() ? dx : -dx,
-            getRandomCoinFlip() ? dy : -dy,
-            FOOD_ENERGY
-        });
-    }
-    return foods;
-}
-
 // ---------------------------- FITNESS ----------------------------
 
-float energyCentralityFitness(World& world) {
+float energyCentrality(World& world) {
     if (world.cells.empty()) return 0.0f;
 
     float totalDist = 0.0f;
     for (const Cell& cell : world.cells) {
         totalDist += std::sqrt(cell.x * cell.x + cell.y * cell.y);
     }
-    for (const Food& food : world.foods) {
-        totalDist += std::sqrt(food.x * food.x + food.y * food.y);
-    }
 
-    float avgDist = totalDist / (world.cells.size() + world.foods.size());
-    return 1.0f / (1.0f + avgDist); // higher fitness for lower average distance
+    float avgDist = totalDist / (world.cells.size());
+    return 1.0f / (avgDist + 1.0f);
 }
 
-float spreadFitness(World& world) {
+float spread(World& world) {
     if (world.cells.empty()) return 0.0f;
 
     int minX = world.cells[0].x;
@@ -115,15 +54,24 @@ float totalCellsEnergy(World& world) {
 }
 
 float totalAcquiredEnergy(World& world) {
+    float totalFoodEnergy = NUM_FOODS * FOOD_ENERGY;
     float energy = 0;
-    for (const Cell& cell: world.cells) {
-        energy += cell.energy;
+    for (const Food& food: world.foods) {
+        energy += food.energy;
     }
-    return std::round((energy - INITIAL_ENERGY) * 10.0f) / 10.0f;
+    return std::round((totalFoodEnergy - energy) / totalFoodEnergy * 100.0f) / 100.0f;
 }
 
 float totalCells(World& world) {
     return static_cast<float>(world.cells.size());
+}
+
+float droughtResistance(World& world) {
+    int fullCells = 0;
+    for (const Cell& cell : world.cells) {
+        if (cell.energy >= MIN_GROWTH_ENERGY) fullCells++;
+    }
+    return static_cast<float>(fullCells) / world.cells.size();
 }
 
 void sortByFitness(vector<World>& population) {
@@ -134,7 +82,10 @@ void sortByFitness(vector<World>& population) {
 }
 
 float calculateFitness(World& world) {
-    return totalAcquiredEnergy(world) - 0.01 * totalCells(world);
+    return 
+        totalAcquiredEnergy(world)
+        + 0.1f * energyCentrality(world)
+        - 0.5f * droughtResistance(world);
     // return spreadFitness(world);
     // return energyCentralityFitness(world);
 }
@@ -146,17 +97,12 @@ void saveBestRules(const vector<World>& population, int generation) {
     const World& best = population.front();
 
     std::ofstream file("best_individual.csv", std::ios::app);
-    if (file.tellp() == 0) file << "generation;rules;foods\n";
+    if (file.tellp() == 0) file << "generation;rules\n";
 
     file << generation << ";";
     for (size_t i = 0; i < best.rules.size(); i++) {
         file << static_cast<int>(best.rules[i]);
         if (i < best.rules.size() - 1) file << " ";
-    }
-    file << ";";
-    for (const auto& food : best.foods) {
-        file << food.x << " " << food.y << " " << food.energy;
-        if (&food != &best.foods.back()) file << ",";
     }
     file << "\n";   
 }
@@ -272,13 +218,15 @@ void runGeneticAlgorithm() {
         
         auto gen_start = std::chrono::high_resolution_clock::now();
 
+        float averageFitness = 0.0f;
+
         cout << "Generation " << gen+1 << "/" << NUM_GENERATIONS << "\n";
         cout << "-----------------------------------\n";
         
         // ==== 1. Evaluate population (simulate + fitness) ====
         for (int ind = 0; ind < POPULATION_SIZE; ind++) {
             vector<float> fitnesses = {};
-            bool failed_early = false;
+            bool failedEarly = false;
             for (int t = 0; t < NUM_TRIES; t++) {
                 World base = population[ind];   // keep rules/genome
                 base.cells.clear();
@@ -296,16 +244,15 @@ void runGeneticAlgorithm() {
                 // accumulate fitness over tries
                 float fitness = calculateFitness(worldCopy);
                 // early stopping if no positive fitness achieved
-                if (t >= 5 && *std::max_element(fitnesses.begin(), fitnesses.begin() + t) <= 0) {
-                    // cout << "Early stopping for individual " << ind << endl;
-                    population[ind].fitness = -10;
-                    failed_early = true;
+                if (t >= 5 && gen > 0 && *std::max_element(fitnesses.begin(), fitnesses.begin() + t) <= averageFitness * 0.1f) {
+                    population[ind].fitness = -1;
+                    failedEarly = true;
                     break;
                 } else {
                     fitnesses.push_back(fitness);
                 }
             }
-            if (failed_early) continue;
+            if (failedEarly) continue;
             // assign summed fitness
             population[ind].fitness = accumulate(fitnesses.begin(), fitnesses.end(), 0.0f) / fitnesses.size();
         }
@@ -319,11 +266,10 @@ void runGeneticAlgorithm() {
             if (i < population.size() - 1) cout << ", ";
         }
         cout << "\nBest fitness: " << population[0].fitness << endl;
-        cout << "Average fitness: "
-            << accumulate(population.begin(), population.end(), 0.0f,
+        averageFitness = accumulate(population.begin(), population.end(), 0.0f,
                         [](float sum, const World& w) { return sum + w.fitness; })
-                    / population.size()
-            << endl;
+                    / population.size();
+        cout << "Average fitness: " << averageFitness << endl;
 
         saveBestRules(population, gen);
         saveFitnessHistory(population, gen);
