@@ -4,7 +4,15 @@
 
 #include "utils.hpp"
 
+#include "MiniDNN.h"
+
+
 using namespace std;
+using namespace MiniDNN;
+
+
+typedef Eigen::MatrixXd Matrix;
+typedef Eigen::VectorXd Vector;
 
 // struct Junction;
 // struct Tube;
@@ -15,8 +23,8 @@ const int DEFAULT_FLOW_RATE = 1;
 
 struct Tube {
 
-    float x1, y1;
-    float x2, y2;
+    const float x1, y1;
+    const float x2, y2;
 
     int flow_rate;
 
@@ -26,11 +34,11 @@ struct Tube {
 
 struct Junction {
 
-    float x;
-    float y;
+    const float x;
+    const float y;
     int energy;
 
-    FoodSource* food_source = nullptr;
+    FoodSource* foodSource = nullptr;
 
     struct TubeInfo { Tube* tube; float angle; };
     vector<TubeInfo> in_tubes;
@@ -38,77 +46,86 @@ struct Junction {
 };
 
 struct FoodSource {
-    float x;
-    float y;
+    const float x;
+    const float y;
     int energy;
     // enum class FoodType { A, B, C } type;
 };
 
-struct ActionParameter {
-    float value;
-    const float  min_value;
-    const float max_value;
-    float mutation_rate = DEFAULT_MUTATION_RATE;
+struct GrowthDecisionNet {
+    vector<vector<double>> genome;
+
+    int numberOfInTubes = 0;
+    int numberOfOutTubes = 0;
+    float averageAngleInTubes = 0.0f;
+    float averageAngleOutTubes = 0.0f;
+    bool touchingFoodSource = false;
+
+    float growth_probability = 0.0f;
+    float growth_angle = 0.0f;
+
+    Network net;
+    Matrix input;
+
+    GrowthDecisionNet(const vector<vector<double>>& genome,
+                    int numberOfInTubes = 0,
+                    int numberOfOutTubes = 0,
+                    float averageAngleInTubes = 0.0f,
+                    float averageAngleOutTubes = 0.0f,
+                    bool touchingFoodSource = false) {
+
+        Layer* layer1 = new FullyConnected<Tanh>(5, 8);
+        Layer* layer2 = new FullyConnected<Tanh>(8, 8);
+        Layer* layer3 = new FullyConnected<Identity>(8, 2);
+
+        net.add_layer(layer1);
+        net.add_layer(layer2);
+        net.add_layer(layer3);
+        net.set_output(new RegressionMSE());
+
+        net.set_parameters(genome);
+
+        input = Matrix({
+            static_cast<double>(numberOfInTubes),
+            static_cast<double>(numberOfOutTubes),
+            static_cast<double>(averageAngleInTubes),
+            static_cast<double>(averageAngleOutTubes),
+            static_cast<double>(touchingFoodSource)
+        });
+    }
+
+    void decideAction() {
+        Vector pred = net.predict(input);
+        growth_probability = static_cast<float>(pred(0));
+        growth_angle = static_cast<float>(pred(1));
+    }
 };
 
-struct JunctionAction {
-    // probability to grow a new tube at each junction per time step
-    ActionParameter growth_probability{Random::uniform(), 0.0f, 1.0f};
-    // how much to turn from average angle when growing new tube
-    ActionParameter angle_shift{Random::uniform(-180.0f, 180.0f), -180.0f, 180.0f};
-    // noise in angle when growing new tube
-    ActionParameter angle_noise{Random::uniform(-180.0f, 180.0f), -180.0f, 180.0f};
-};
-
-struct TubeAction {
-    // how much to increase flow rate when energy is high
-    ActionParameter flow_increase_factor{Random::uniform(1.0f, 3.0f), 1.0f, 5.0f};
-    // how much to decrease flow rate when energy is low
-    ActionParameter flow_decrease_factor{Random::uniform(0.2f, 1.0f), 0.0f, 1.0f};
-    // energy thresholds
-    ActionParameter high_energy_threshold{Random::uniform(5.0f, 20.0f), 0.0f, 100.0f};
-    ActionParameter low_energy_threshold{Random::uniform(0.0f, 5.0f), 0.0f, 100.0f};
-};
-
-struct Action {
-    JunctionAction junction_action;
-    TubeAction tube_action;
-};
 
 struct World {
-
     vector<unique_ptr<Junction>> junctions;
     vector<unique_ptr<Tube>> tubes;
-    vector<unique_ptr<FoodSource>> food_sources;
+    vector<unique_ptr<FoodSource>> foodSources;
 
-    Action action;
+    GrowthDecisionNet growthDecisionNet;
+    float fitness = 0.0f;
+        
+    World(const vector<vector<double>>& genome,
+        vector<unique_ptr<Junction>>&& js,
+        vector<unique_ptr<FoodSource>>&& fs)
+        : growthDecisionNet(genome),
+        junctions(std::move(js)),
+        foodSources(std::move(fs)) {}
 
-    float fitness = 0.0;
-    
+
     void step() {
-
         updateJunctions();
         updateTubes();
         updateFood();
-
-        // render();
     }
 
-    void updateJunctions() {
-        
-        for (auto &junction : junctions) {
-            
-            // Placeholder for junction update logic
-        }
-
-    }
-
-    void updateTubes() {
-        // Placeholder for tube update logic
-    }
-
-    void updateFood() {
-        // Placeholder for food update logic
-    }
-
+    void updateJunctions() {}
+    void updateTubes() {}
+    void updateFood() {}
 };
+
