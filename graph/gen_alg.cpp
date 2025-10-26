@@ -1,5 +1,7 @@
 #include "gen_alg.hpp"
 #include "utils.hpp"
+
+#include <vector>
 #include <iostream>
 #include <random>
 #include <cstdint>
@@ -13,6 +15,7 @@ using namespace std;
 
 #include <chrono>
 
+
 vector<World> generateInitialPopulation() {
     vector<World> population;
     for (int i = 0; i < POPULATION_SIZE; i++) {
@@ -21,6 +24,8 @@ vector<World> generateInitialPopulation() {
         vector<Junction> junctions = {Junction{0.0f, 0.0f, 100}};
         vector<FoodSource> foodSources = {FoodSource{0.0f, 0.0f, 10.0f, 100}};
     }
+
+    return population;
 }
 
 
@@ -36,10 +41,22 @@ void runGeneticAlgorithm() {
 
 int main() {
 
-    cout << "Number of generations: " << NUM_GENERATIONS << endl;
-    cout << "Population size: " << POPULATION_SIZE << endl;
-    cout << "Number of steps: " << NUM_STEPS << endl;
-    cout << "=======================================" << endl;
+    vector<unique_ptr<Junction>> junctions;
+    junctions.push_back(make_unique<Junction>(Junction{0.0f, 0.0f, 100}));
+    
+    vector<unique_ptr<FoodSource>> foodSources;
+    foodSources.push_back(make_unique<FoodSource>(FoodSource{30.0f, 30.0f, 10.0f, 100}));
 
-    runGeneticAlgorithm();
+    World world(Genome(), std::move(junctions), std::move(foodSources));
+
+    Printer::print("Number of junctions before step: " + to_string(world.junctions.size()));
+    world.step();
+    Printer::print("Number of junctions after step: " + to_string(world.junctions.size()));
+
+    // cout << "Number of generations: " << NUM_GENERATIONS << endl;
+    // cout << "Population size: " << POPULATION_SIZE << endl;
+    // cout << "Number of steps: " << NUM_STEPS << endl;
+    // cout << "=======================================" << endl;
+
+    // runGeneticAlgorithm();
 }
