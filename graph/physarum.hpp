@@ -16,14 +16,12 @@ using namespace MiniDNN;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::VectorXd Vector;
 
-// struct Junction;
-// struct Tube;
-// struct FoodSource;
+const double MIN_GROWTH_ENERGY = 2;
 
 const double DEFAULT_MUTATION_RATE = 0.05;
-const int DEFAULT_FLOW_RATE = 1; 
+const double DEFAULT_FLOW_RATE = 1;
 
-const double TUBE_LENGTH = 50.0;
+const double TUBE_LENGTH = 20.0;
 
 struct Junction;
 struct Tube;
@@ -31,7 +29,8 @@ struct FoodSource;
 
 
 struct Genome {
-    vector<vector<double>> weights;
+    vector<vector<double>> growNetWeights;
+    vector<vector<double>> flowNetWeights;
 
     const vector<pair<int, int>> GROW_NET_DIMS = {
         {5, 8}, // 5 x 8
@@ -40,9 +39,9 @@ struct Genome {
     };
 
     const vector<pair<int, int>> FLOW_NET_DIMS = {
-        {5, 8}, // input to hidden
-        {8, 8}, // hidden to hidden
-        {8, 2}  // hidden to output
+        {3, 8},
+        {8, 8},
+        {8, 2}
     };
 
     Genome() {
@@ -51,9 +50,17 @@ struct Genome {
             int in = layer_dim.first;
             int out = layer_dim.second;
             // weight matrix (in x out)
-            weights.push_back(Random::randvec(in * out, 0.0, 1.0));
+            growNetWeights.push_back(Random::randvec(in * out, 0.0, 1.0));
             // bias vector (1 x out)
-            weights.push_back(Random::randvec(out, 0.0, 1.0));
+            growNetWeights.push_back(Random::randvec(out, 0.0, 1.0));
+        }
+        for (const auto& layer_dim : FLOW_NET_DIMS) {
+            int in = layer_dim.first;
+            int out = layer_dim.second;
+            // weight matrix (in x out)
+            flowNetWeights.push_back(Random::randvec(in * out, 0.0, 1.0));
+            // bias vector (1 x out)
+            flowNetWeights.push_back(Random::randvec(out, 0.0, 1.0));
         }
     }
 
@@ -63,34 +70,36 @@ struct Genome {
         for (size_t i = 0; i < GROW_NET_DIMS.size(); ++i) {
             vector<double> layer_params;
             // append weights
-            layer_params.insert(layer_params.end(), weights[i*2].begin(), weights[i*2].end());
+            layer_params.insert(layer_params.end(), growNetWeights[i*2].begin(), growNetWeights[i*2].end());
             // append biases
-            layer_params.insert(layer_params.end(), weights[i*2+1].begin(), weights[i*2+1].end());
+            layer_params.insert(layer_params.end(), growNetWeights[i*2+1].begin(), growNetWeights[i*2+1].end());
             vals.push_back(layer_params);
         }
         return vals;
     }
 
-
-
-    // vector<vector<double>> getFlowNetValues() const {
-    //     vector<vector<double>> vals;
-    //     for (const auto& layer_dim : FLOW_NET_DIMS) {
-    //         int rows = layer_dim.first;
-    //         int cols = layer_dim.second;
-    //         int size = rows * cols;
-    //         const auto& layer_weights = weights[&layer_dim - &FLOW_NET_DIMS[0]];
-    //         vector<double> layer_vals;
-    //         for (int i = 0; i < size; ++i) {
-    //             layer_vals.push_back(static_cast<double>(layer_weights[i]));
-    //         }
-    //         vals.push_back(layer_vals);
-    //     }
-    //     return vals;
-    // }
+    vector<vector<double>> getFlowNetValues() const {
+        vector<vector<double>> vals;
+        for (size_t i = 0; i < FLOW_NET_DIMS.size(); ++i) {
+            vector<double> layer_params;
+            // append weights
+            layer_params.insert(layer_params.end(), flowNetWeights[i*2].begin(), flowNetWeights[i*2].end());
+            // append biases
+            layer_params.insert(layer_params.end(), flowNetWeights[i*2+1].begin(), flowNetWeights[i*2+1].end());
+            vals.push_back(layer_params);
+        }
+        return vals;
+    }
 
     void mutate(double mutation_rate = DEFAULT_MUTATION_RATE) {
-        for (auto& layer_weights : weights) {
+        for (auto& layer_weights : growNetWeights) {
+            for (auto& weight : layer_weights) {
+                if (Random::uniform() < mutation_rate) {
+                    weight += clamp(Random::uniform(-0.1, 0.1), 0.0, 1.0);
+                }
+            }
+        }
+        for (auto& layer_weights : flowNetWeights) {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
                     weight += clamp(Random::uniform(-0.1, 0.1), 0.0, 1.0);
@@ -101,11 +110,24 @@ struct Genome {
 };
 
 
+struct Tube {
+
+    const double x1;
+    const double y1;
+    const double x2;
+    const double y2;
+
+    double flowRate;
+
+    Junction* fromJunction;
+    Junction* toJunction;
+};    
+
 struct Junction {
 
     const double x;
     const double y;
-    int energy;
+    double energy;
 
     FoodSource* foodSource = nullptr;
 
@@ -138,26 +160,43 @@ struct Junction {
     bool isTouchingFoodSource() {
         return foodSource != nullptr;
     }
-};
 
-struct Tube {
+    double getSummedFlowRate() {
+        double totalFlow = 0.0;
+        for (const auto& t : inTubes) {
+            totalFlow += t.tube->flowRate;
+        }
+        for (const auto& t : outTubes) {
+            totalFlow -= t.tube->flowRate;
+        }
+        return totalFlow;
+    }
 
-    const double x1;
-    const double y1;
-    const double x2;
-    const double y2;
+    // moves tube from inTubes to outTubes or vice versa
+    void switchTubeDirection(Tube& tube) {
+        auto it_in = std::find_if(inTubes.begin(), inTubes.end(),
+            [&tube](const TubeInfo& ti) { return ti.tube == &tube; });
+        if (it_in != inTubes.end()) {
+            outTubes.push_back(*it_in);
+            inTubes.erase(it_in);
+            return;
+        }
+        auto it_out = std::find_if(outTubes.begin(), outTubes.end(),
+            [&tube](const TubeInfo& ti) { return ti.tube == &tube; });
+        if (it_out != outTubes.end()) {
+            inTubes.push_back(*it_out);
+            outTubes.erase(it_out);
+            return;
+        }
+    }
+};  
 
-    int flowRate;
-
-    Junction* fromJunction;
-    Junction* toJunction;
-};    
 
 struct FoodSource {
     const double x;
     const double y;
     const double radius;
-    int energy;
+    double energy;
     // enum class FoodType { A, B, C } type;
 };
 
@@ -218,9 +257,47 @@ struct GrowthDecisionNet {
 };
 
 struct FlowDecisionNet {
-    // To be implemented
+    Genome genome;
 
-    // TODO vote on prob of increasing/decreasing flow rate based on inputs
+    double currentFlowRate = 0.0;
+    double inJunctionAverageFlowRate = 0.0;
+    double outJunctionAverageFlowRate = 0.0;
+
+    double increaseFlowProb = 0.0;
+    double decreaseFlowProb = 0.0;
+
+    Network net;
+    Matrix input;
+
+    FlowDecisionNet(const Genome& genome,
+                    double currentFlowRate = 0.0,
+                    double inJunctionAverageFlowRate = 0.0,
+                    double outJunctionAverageFlowRate = 0.0) {
+
+        Layer* layer1 = new FullyConnected<Sigmoid>(genome.FLOW_NET_DIMS[0].first, genome.FLOW_NET_DIMS[0].second);
+        Layer* layer2 = new FullyConnected<Sigmoid>(genome.FLOW_NET_DIMS[1].first, genome.FLOW_NET_DIMS[1].second);
+        Layer* layer3 = new FullyConnected<Identity>(genome.FLOW_NET_DIMS[2].first, genome.FLOW_NET_DIMS[2].second);
+
+        net.add_layer(layer1);
+        net.add_layer(layer2);
+        net.add_layer(layer3);
+        net.set_output(new RegressionMSE());
+
+        net.init();
+        net.set_parameters(genome.getFlowNetValues());
+
+        input = Matrix(3, 1);
+        input << currentFlowRate,
+                inJunctionAverageFlowRate,
+                outJunctionAverageFlowRate;
+
+    }
+
+    void decideAction() {
+        Vector pred = net.predict(input);
+        increaseFlowProb = clamp(static_cast<double>(pred(0)), 0.0, 1.0);
+        decreaseFlowProb = clamp(static_cast<double>(pred(1)), 0.0, 1.0);
+    }
 };
 
 
@@ -230,12 +307,14 @@ struct World {
     vector<unique_ptr<FoodSource>> foodSources;
 
     GrowthDecisionNet growthDecisionNet;
+    FlowDecisionNet flowDecisionNet;
     double fitness = 0.0;
     
     World(const Genome& genome,
         vector<unique_ptr<Junction>>&& js,
         vector<unique_ptr<FoodSource>>&& fs)
         : growthDecisionNet(genome),
+        flowDecisionNet(genome),
         junctions(std::move(js)),
         foodSources(std::move(fs)) {}
 
@@ -244,11 +323,15 @@ struct World {
         double newX = from.x + TUBE_LENGTH * cos(angle);
         double newY = from.y + TUBE_LENGTH * sin(angle);
 
-        auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 0});
+        // TODO detect collision here
+
+        auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 3});
         Junction* newJuncPtr = newJunction.get();
 
+        from.energy -= 3;
+
         auto newTube = std::make_unique<Tube>(Tube{
-            from.x, from.y, newX, newY, DEFAULT_FLOW_RATE, &from, newJuncPtr
+            from.x, from.y, newX, newY, 0, &from, newJuncPtr
         });
 
         from.outTubes.push_back({newTube.get(), angle});
@@ -287,6 +370,11 @@ struct World {
 
         for (int step = 0; step < steps; ++step) {
             this->step();
+            double energySum = 0.0;
+            for (const auto& junc : junctions) {
+                energySum += junc->energy;
+            }
+            cout << "Step " << step << ": Total energy in the system: " << energySum << endl;
             if (save) {
                 this->saveFrame(step);
             }
@@ -329,7 +417,7 @@ struct World {
 
     void updateJunctions() {
 
-        removeDeadJunctions();
+        removeDeadJunctionsAndTubes();
 
         size_t existingCount = junctions.size();
         // Printer::print("Existing count: " + to_string(existingCount));
@@ -348,24 +436,76 @@ struct World {
 
             // TODO detect collision and if collides, put the new junction on nearest tube in the way
 
-            if (Random::uniform() < growthDecisionNet.growthProbability) {
+            if (Random::uniform() < growthDecisionNet.growthProbability && junc->energy > MIN_GROWTH_ENERGY) {
                 // Printer::print("Growing tube from junction at (" + to_string(junc->x) + ", " + to_string(junc->y) + ") with angle " + to_string(growthDecisionNet.growthAngle));
                 growTubeFrom(*junc, growthDecisionNet.growthAngle + 
-                    Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
+                    Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));                
+            }
+
+            if (junc->isTouchingFoodSource()) {
+                junc->energy += 1.0; // absorb food energy
+                junc->foodSource->energy -= 1.0;
+                if (junc->foodSource->energy < 0) {
+                    junc->foodSource = nullptr; // food source depleted
+                }
+            }
+
+            junc->energy += 0.1 * junc->getSummedFlowRate();
+        }
+    }
+
+    void removeDeadJunctionsAndTubes() {
+        // 1. Collect pointers to dead junctions
+        std::vector<Junction*> dead;
+        for (auto& j : junctions)
+            if (j->energy <= 0)
+                dead.push_back(j.get());
+
+        // 2. Remove tubes connected to dead junctions
+        tubes.erase(
+            std::remove_if(tubes.begin(), tubes.end(),
+                [&](const std::unique_ptr<Tube>& t) {
+                    return std::find(dead.begin(), dead.end(), t->fromJunction) != dead.end() ||
+                        std::find(dead.begin(), dead.end(), t->toJunction)   != dead.end();
+                }),
+            tubes.end());
+
+        // 3. Remove the dead junctions themselves
+        junctions.erase(
+            std::remove_if(junctions.begin(), junctions.end(),
+                [](const std::unique_ptr<Junction>& j) {
+                    return j->energy <= 0;
+                }),
+            junctions.end());
+    }
+
+    
+    void updateTubes() {
+
+        for (auto& tube : tubes) {
+            
+            flowDecisionNet.currentFlowRate = tube->flowRate;
+            flowDecisionNet.inJunctionAverageFlowRate = static_cast<double>(tube->fromJunction->getSummedFlowRate());
+            flowDecisionNet.outJunctionAverageFlowRate = static_cast<double>(-tube->toJunction->getSummedFlowRate());
+
+            flowDecisionNet.decideAction();
+
+            if (Random::uniform() < flowDecisionNet.increaseFlowProb) {
+                tube->flowRate += 1;
+            }
+            if (Random::uniform() < flowDecisionNet.decreaseFlowProb && tube->flowRate > 0) {
+                tube->flowRate -= 1;
+            }
+
+            if (tube->flowRate < 0) {
+                std::swap(tube->fromJunction, tube->toJunction);
+                tube->flowRate = -tube->flowRate;
+                tube->fromJunction->switchTubeDirection(*tube);
+                tube->toJunction->switchTubeDirection(*tube);
             }
         }
     }
 
-    void removeDeadJunctions() {
-        junctions.erase(
-            std::remove_if(junctions.begin(), junctions.end(),
-                [](const unique_ptr<Junction>& junc) {
-                    return junc->energy <= -100; // TODO set to 0 (energy depletion condition)
-                }),
-            junctions.end());
-    }
-    
-    void updateTubes() {}
     void updateFood() {}
 };
 

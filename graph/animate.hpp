@@ -9,6 +9,9 @@ using namespace std;
 const int WIN_WIDTH = 2000;
 const int WIN_HEIGHT = 1500;
 
+const int JUNCTION_RADIUS = 5;
+const int TUBE_THICKNESS = 3;
+
 const float FPS = 5.0f;
 
 struct JunctionVisual {

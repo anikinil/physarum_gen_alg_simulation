@@ -7,6 +7,7 @@
 
 using namespace std;
 
+
 vector<Frame> loadFrames() {
     vector<Frame> frames;
     ifstream file("data/frames.csv");
@@ -38,9 +39,9 @@ vector<Frame> loadFrames() {
 
 void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junctions) {
     for (const auto& junc : junctions) {
-        sf::CircleShape shape(10);
+        sf::CircleShape shape(JUNCTION_RADIUS);
         shape.setFillColor(sf::Color::Yellow);
-        shape.setPosition(WIN_WIDTH/2 + junc.x - 10, WIN_HEIGHT/2 + junc.y - 10);
+        shape.setPosition(WIN_WIDTH/2 + junc.x - JUNCTION_RADIUS, WIN_HEIGHT/2 + junc.y - JUNCTION_RADIUS);
         window.draw(shape);
     }
 }
@@ -53,7 +54,7 @@ void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
         float length = std::sqrt(dir.x * dir.x + dir.y * dir.y);
         float angle = std::atan2(dir.y, dir.x) * 180 / M_PI;
 
-        sf::RectangleShape thickLine(sf::Vector2f(length, 3.0f)); // 3px thickness
+        sf::RectangleShape thickLine(sf::Vector2f(length, TUBE_THICKNESS)); // 3px thickness
         thickLine.setPosition(p1);
         thickLine.setRotation(angle);
         thickLine.setFillColor(sf::Color::Yellow);
@@ -77,15 +78,15 @@ int main() {
 
     // initialize world
     vector<unique_ptr<Junction>> junctions;
-    junctions.push_back(make_unique<Junction>(Junction{0.0f, 0.0f, 100}));
+    junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
     
     vector<unique_ptr<FoodSource>> foodSources;
-    foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0f, 0.0f, 50.0f, 100}));
+    // foodSources.push_back(make_unique<FoodSource>(FoodSource{0.0, 0.0, 50.0, 100.0}));
 
     World world(Genome(), std::move(junctions), std::move(foodSources));
     
     // run and save simulation
-    world.run(7, true);
+    world.run(200, true);
 
     // Load saved generation
     vector<Frame> frames = loadFrames();
