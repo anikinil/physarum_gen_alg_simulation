@@ -40,7 +40,7 @@ void saveGenomeAndFitness(const Genome& genome, double fitness, double averageFi
 
     file << generation << ";" << fitness << ";" << averageFitness << ";";
 
-    // Serialize genome14
+    // Serialize genome
     for (const auto& layer_weights : genome.growNetWeights) {
         for (const auto& weight : layer_weights) {
             file << weight << " ";
@@ -175,17 +175,20 @@ void runGeneticAlgorithm() {
             double min_fitness = *min_element(fitnesses.begin(), fitnesses.end());
         }
 
+
+        double bestFitness = population.front()->fitness;
         averageFitness = accumulate(population.begin(), population.end(), 0.0, [](double sum, const unique_ptr<World>& w) { return sum + w->fitness; }) / population.size();
 
         sortByFitness(population);
-        saveGenomeAndFitness(population.front()->growthDecisionNet.genome, population.front()->fitness, averageFitness, gen);
+        saveGenomeAndFitness(population.front()->getGenome(), bestFitness, averageFitness, gen);
+
 
         cout << "Population sorted by fitness.\n";
         for (size_t i = 0; i < population.size(); i++) {
             cout << " " << population[i]->fitness;
             if (i < population.size() - 1) cout << ", ";
         }
-        cout << "\nBest fitness: " << population[0]->fitness << endl;
+        cout << "\nBest fitness: " << bestFitness << endl;
         cout << "Average fitness: " << averageFitness << endl;
 
         population = createNextGeneration(population);

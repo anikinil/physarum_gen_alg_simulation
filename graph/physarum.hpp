@@ -565,18 +565,11 @@ struct World {
     }
 
     double calculateFitness() {
-        // double totalEnergy = 0.0;
-        // for (const auto& junc : junctions) {
-        //     totalEnergy += junc->energy;
-        // }
-        // fitness = totalEnergy;
-        // return fitness;
-
-        // centrality of energy distribution
+        
         double fitnessSum = 0.0;
         for (const auto& junc : junctions) {
             double dist = sqrt(junc->x * junc->x + junc->y * junc->y);
-            fitnessSum += junc->energy / (1.0 + dist);
+            fitnessSum += junc->energy * dist;
         }
         fitness = fitnessSum;
         return fitness;
