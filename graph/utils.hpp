@@ -27,12 +27,3 @@ public:
         return vec;
     }
 };
-
-
-class Printer {
-public:
-    template<typename T>
-    static void print(const T& msg) {
-        cout << msg << std::endl;
-    }
-};

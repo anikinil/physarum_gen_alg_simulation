@@ -25,7 +25,7 @@ vector<unique_ptr<World>> generateInitialPopulation() {
         vector<unique_ptr<Junction>> junctions;
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 50.0}));
         vector<unique_ptr<FoodSource>> foodSources;
-        foodSources.push_back(make_unique<FoodSource>(FoodSource{50.0, 0.0, 100.0}));
+        foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
 
         auto world = make_unique<World>(Genome(), std::move(junctions), std::move(foodSources));
         population.push_back(std::move(world));
@@ -34,13 +34,13 @@ vector<unique_ptr<World>> generateInitialPopulation() {
     return population;
 }
 
-void saveGenomeAndFitness(const Genome& genome, double fitness, int generation) {
+void saveGenomeAndFitness(const Genome& genome, double fitness, double averageFitness, int generation) {
     std::ofstream file("data/genome_fitness.csv", std::ios::app);
-    if (file.tellp() == 0) file << "generation;fitness;genome\n";
+    if (file.tellp() == 0) file << "generation;best_fitness;average_fitness;genome\n";
 
-    file << generation << ";" << fitness << ";";
+    file << generation << ";" << fitness << ";" << averageFitness << ";";
 
-    // Serialize genome
+    // Serialize genome14
     for (const auto& layer_weights : genome.growNetWeights) {
         for (const auto& weight : layer_weights) {
             file << weight << " ";
@@ -63,30 +63,31 @@ void sortByFitness(vector<unique_ptr<World>>& population) {
 
 void crossOverGenomes(const Genome& parent1, const Genome& parent2, Genome& child) {
 
-    // Simple one-point crossover for demonstration
-    size_t growSize = parent1.growNetWeights.size();
-    size_t flowSize = parent1.flowNetWeights.size();
+    float crossoverPointGrowth = Random::uniform(0.0f, 1.0f);
+    float crossoverPointFlow = Random::uniform(0.0f, 1.0f);
 
-    size_t growCrossoverPoint = Random::randint(1, growSize - 1);
-    size_t flowCrossoverPoint = Random::randint(1, flowSize - 1);
-
+    // Crossover growNetWeights by calculating the average of parents' weights for each weight
     child.growNetWeights.clear();
-    child.flowNetWeights.clear();
-
-    for (size_t i = 0; i < growSize; i++) {
-        if (i < growCrossoverPoint) {
-            child.growNetWeights.push_back(parent1.growNetWeights[i]);
-        } else {
-            child.growNetWeights.push_back(parent2.growNetWeights[i]);
+    for (size_t i = 0; i < parent1.growNetWeights.size(); ++i) {
+        const auto& layer1 = parent1.growNetWeights[i];
+        const auto& layer2 = parent2.growNetWeights[i];
+        vector<double> childLayer;
+        for (size_t j = 0; j < layer1.size(); ++j) {
+            childLayer.push_back((crossoverPointGrowth * layer1[j] + (1 - crossoverPointGrowth) * layer2[j]));
         }
+        child.growNetWeights.push_back(childLayer);
     }
 
-    for (size_t i = 0; i < flowSize; i++) {
-        if (i < flowCrossoverPoint) {
-            child.flowNetWeights.push_back(parent1.flowNetWeights[i]);
-        } else {
-            child.flowNetWeights.push_back(parent2.flowNetWeights[i]);
+    // Crossover flowNetWeights by calculating the average of parents' weights for each weight
+    child.flowNetWeights.clear();
+    for (size_t i = 0; i < parent1.flowNetWeights.size(); ++i) {
+        const auto& layer1 = parent1.flowNetWeights[i];
+        const auto& layer2 = parent2.flowNetWeights[i];
+        vector<double> childLayer;
+        for (size_t j = 0; j < layer1.size(); ++j) {
+            childLayer.push_back((crossoverPointFlow * layer1[j] + (1 - crossoverPointFlow) * layer2[j]));
         }
+        child.flowNetWeights.push_back(childLayer);
     }
 }
 
@@ -102,6 +103,7 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         vector<unique_ptr<Junction>> junctions;
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
         vector<unique_ptr<FoodSource>> foodSources;
+        foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
 
         nextGeneration.push_back(make_unique<World>(currentPopulation[i]->getGenome(), std::move(junctions), std::move(foodSources)));
     }
@@ -123,7 +125,7 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         vector<unique_ptr<Junction>> junctions;
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
         vector<unique_ptr<FoodSource>> foodSources;
-        foodSources.push_back(make_unique<FoodSource>(FoodSource{50.0, 0.0, 100.0}));
+        foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
 
         auto childWorld = make_unique<World>(childGenome, std::move(junctions), std::move(foodSources));
         nextGeneration.push_back(std::move(childWorld));
@@ -140,7 +142,6 @@ void runGeneticAlgorithm() {
 
     for (int gen = 0; gen < NUM_GENERATIONS; gen++) {
 
-
         double averageFitness = 0.0f;
 
         cout << "-----------------------------------\n";
@@ -151,20 +152,33 @@ void runGeneticAlgorithm() {
 
             vector<double> fitnesses;
             
-            // for (int t = 0; t < NUM_TRIES; t++) {
-                // cout << " Individual try " << t+1 << "/" << NUM_TRIES << "\n";
+            for (int t = 0; t < NUM_TRIES; t++) {
 
                 ind->run(NUM_STEPS, false);
                 double fitness = ind->calculateFitness();
                 ind->fitness = fitness;
                 fitnesses.push_back(fitness);
-            // }
+
+                // Reset world for next try
+                ind->junctions.clear();
+                ind->tubes.clear();
+                ind->foodSources.clear();
+
+                vector<unique_ptr<Junction>> junctions;
+                junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 50.0}));
+                vector<unique_ptr<FoodSource>> foodSources;
+                foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
+                ind->junctions = std::move(junctions);
+                ind->foodSources = std::move(foodSources);
+            }
 
             double min_fitness = *min_element(fitnesses.begin(), fitnesses.end());
         }
 
+        averageFitness = accumulate(population.begin(), population.end(), 0.0, [](double sum, const unique_ptr<World>& w) { return sum + w->fitness; }) / population.size();
+
         sortByFitness(population);
-        saveGenomeAndFitness(population.front()->growthDecisionNet.genome, population.front()->fitness, gen);
+        saveGenomeAndFitness(population.front()->growthDecisionNet.genome, population.front()->fitness, averageFitness, gen);
 
         cout << "Population sorted by fitness.\n";
         for (size_t i = 0; i < population.size(); i++) {
@@ -172,9 +186,6 @@ void runGeneticAlgorithm() {
             if (i < population.size() - 1) cout << ", ";
         }
         cout << "\nBest fitness: " << population[0]->fitness << endl;
-        averageFitness = accumulate(population.begin(), population.end(), 0.0,
-                        [](double sum, const unique_ptr<World>& w) { return sum + w->fitness; })
-                    / population.size();
         cout << "Average fitness: " << averageFitness << endl;
 
         population = createNextGeneration(population);

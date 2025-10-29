@@ -18,10 +18,29 @@ typedef Eigen::VectorXd Vector;
 
 const double MIN_GROWTH_ENERGY = 2.0;
 
-const double DEFAULT_MUTATION_RATE = 0.05;
-const double DEFAULT_FLOW_RATE = 1.0;
+const double DEFAULT_MUTATION_RATE = 1.0;
+const double MUTATION_STRENGTH = 0.2;
 
+const double DEFAULT_FLOW_RATE = 1.0;
 const double TUBE_LENGTH = 20.0;
+
+
+const vector<pair<int, int>> GROW_NET_DIMS = {
+    {6, 8}, // 6 x 8
+    {8, 8}, // 8 x 8
+    {8, 3}  // 8 x 3
+    // + 8 + 8 + 3 
+    // total: 155
+};
+
+const vector<pair<int, int>> FLOW_NET_DIMS = {
+    {3, 8},
+    {8, 8},
+    {8, 2}
+    // total: 122
+};
+// total genome size: 277
+
 
 struct Junction;
 struct Tube;
@@ -32,21 +51,8 @@ struct Genome {
     vector<vector<double>> growNetWeights;
     vector<vector<double>> flowNetWeights;
 
-    const vector<pair<int, int>> GROW_NET_DIMS = {
-        {5, 8}, // 5 x 8
-        {8, 8}, // 8 x 8
-        {8, 3}  // 8 x 3
-        // + 8 + 8 + 3 
-        // total: 
-    };
-
-    const vector<pair<int, int>> FLOW_NET_DIMS = {
-        {3, 8},
-        {8, 8},
-        {8, 2}
-    };
-
     Genome() {
+
         // Initialize weights with random values
         for (const auto& layer_dim : GROW_NET_DIMS) {
             int in = layer_dim.first;
@@ -56,6 +62,7 @@ struct Genome {
             // bias vector (1 x out)
             growNetWeights.push_back(Random::randvec(out, 0.0, 1.0));
         }
+
         for (const auto& layer_dim : FLOW_NET_DIMS) {
             int in = layer_dim.first;
             int out = layer_dim.second;
@@ -120,14 +127,16 @@ struct Genome {
         for (auto& layer_weights : growNetWeights) {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
-                    weight += clamp(Random::uniform(-0.01, 0.01), 0.0, 1.0);
+                    double change = Random::uniform(-MUTATION_STRENGTH, MUTATION_STRENGTH);
+                    weight += clamp(change, 0.0, 1.0);
                 }
             }
         }
         for (auto& layer_weights : flowNetWeights) {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
-                    weight += clamp(Random::uniform(-0.01, 0.01), 0.0, 1.0);
+                    double change = Random::uniform(-MUTATION_STRENGTH, MUTATION_STRENGTH);
+                    weight += clamp(change, 0.0, 1.0);
                 }
             }
         }
@@ -229,12 +238,14 @@ struct FoodSource {
 struct GrowthDecisionNet {
     Genome genome;
 
+
     int numberOfInTubes = 0;
     int numberOfOutTubes = 0;
-    double averageAngleInTubes = 0.0;
-    double averageAngleOutTubes = 0.0;
+    double averageInTubeAngle = 0.0;
+    double averageOutTubeAngle = 0.0;
+    double energy = 0.0;
     bool touchingFoodSource = false;
-
+    
     double growthProbability = 0.0;
     double growthAngle = 0.0;
     double angleVariance = 0.0;
@@ -245,13 +256,14 @@ struct GrowthDecisionNet {
     GrowthDecisionNet(const Genome& genome,
                     int numberOfInTubes = 0,
                     int numberOfOutTubes = 0,
-                    double averageAngleInTubes = 0.0,
-                    double averageAngleOutTubes = 0.0,
+                    double averageInTubeAngle = 0.0,
+                    double averageOutTubeAngle = 0.0,
+                    double energy = 0.0,
                     bool touchingFoodSource = false) {
 
-        Layer* layer1 = new FullyConnected<Sigmoid>(genome.GROW_NET_DIMS[0].first, genome.GROW_NET_DIMS[0].second);
-        Layer* layer2 = new FullyConnected<Sigmoid>(genome.GROW_NET_DIMS[1].first, genome.GROW_NET_DIMS[1].second);
-        Layer* layer3 = new FullyConnected<Identity>(genome.GROW_NET_DIMS[2].first, genome.GROW_NET_DIMS[2].second);
+        Layer* layer1 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[0].first, GROW_NET_DIMS[0].second);
+        Layer* layer2 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[1].first, GROW_NET_DIMS[1].second);
+        Layer* layer3 = new FullyConnected<Identity>(GROW_NET_DIMS[2].first, GROW_NET_DIMS[2].second);
 
         net.add_layer(layer1);
         net.add_layer(layer2);
@@ -259,25 +271,28 @@ struct GrowthDecisionNet {
         net.set_output(new RegressionMSE());
 
         net.init();
+        
         net.set_parameters(genome.getGrowNetValues());
-
-        input = Matrix(5, 1);
+        
+        
+        input = Matrix(6, 1);
         input << static_cast<double>(numberOfInTubes),
-                static_cast<double>(numberOfOutTubes),
-                averageAngleInTubes,
-                averageAngleOutTubes,
-                static_cast<double>(touchingFoodSource);
-
+        static_cast<double>(numberOfOutTubes),
+        static_cast<double>(averageInTubeAngle),
+        static_cast<double>(averageOutTubeAngle),
+        static_cast<double>(energy),
+        static_cast<double>(touchingFoodSource);
     }
-
+    
     void decideAction() {
+
+
+        vector<vector<double>> params = net.get_parameters();
+
         Vector pred = net.predict(input);
         growthProbability = static_cast<double>(pred(0));
         growthAngle = clamp(static_cast<double>(pred(1)), 0.0, 2 * M_PI); // 0 to 360°
         angleVariance = clamp(static_cast<double>(pred(2)), 0.0, M_PI); // max 180°
-
-        // Printer::print("Growth Probability: " + to_string(growthProbability));
-        // Printer::print("Growth Angle: " + to_string(growthAngle));
     }
 };
 
@@ -298,9 +313,9 @@ struct FlowDecisionNet {
                     double inJunctionAverageFlowRate = 0.0,
                     double outJunctionAverageFlowRate = 0.0) {
 
-        Layer* layer1 = new FullyConnected<Sigmoid>(genome.FLOW_NET_DIMS[0].first, genome.FLOW_NET_DIMS[0].second);
-        Layer* layer2 = new FullyConnected<Sigmoid>(genome.FLOW_NET_DIMS[1].first, genome.FLOW_NET_DIMS[1].second);
-        Layer* layer3 = new FullyConnected<Identity>(genome.FLOW_NET_DIMS[2].first, genome.FLOW_NET_DIMS[2].second);
+        Layer* layer1 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[0].first, FLOW_NET_DIMS[0].second);
+        Layer* layer2 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[1].first, FLOW_NET_DIMS[1].second);
+        Layer* layer3 = new FullyConnected<Identity>(FLOW_NET_DIMS[2].first, FLOW_NET_DIMS[2].second);
 
         net.add_layer(layer1);
         net.add_layer(layer2);
@@ -380,7 +395,7 @@ struct World {
 
         if (save) {
             namespace fs = std::filesystem;
-            fs::path p("data/frames.csv");
+            fs::path p("data/animation_frames.csv");
             std::error_code ec;
             if (p.has_parent_path()) {
                 fs::create_directories(p.parent_path(), ec);
@@ -396,7 +411,7 @@ struct World {
         }
 
         if (save) {
-            std::ofstream file("data/frames.csv", std::ios::app);
+            std::ofstream file("data/animation_frames.csv", std::ios::app);
             file << "step,"
                  << "j_x,j_y,j_energy,"
                  << "t_x1,t_y1,t_x2,t_y2,t_flow_rate,"
@@ -407,16 +422,12 @@ struct World {
             if (save) {
                 this->saveFrame(step);
             }
-            double energySum = 0.0;
-            for (const auto& junc : junctions) {
-                energySum += junc->energy;
-            }
             this->step();
         }
     }
 
     void saveFrame(int step) {
-        std::ofstream file("data/frames.csv", std::ios::app);
+        std::ofstream file("data/animation_frames.csv", std::ios::app);
 
         for (const auto& junc : junctions) {
             file << step << ','
@@ -426,7 +437,7 @@ struct World {
                  << ",,,,,"
                  << ",,,\n";
         }
-        for (const auto& tube : tubes) {
+        for (const auto& tube : tubes) {    
             file << step << ','
                  << ",,,"
                  << tube->x1 << ',' << tube->y1 << ','
@@ -454,7 +465,7 @@ struct World {
         removeDeadJunctionsAndTubes();
 
         size_t existingCount = junctions.size();
-        // Printer::print("Existing count: " + to_string(existingCount));
+
 
         for (size_t i = 0; i < existingCount; ++i) {
             
@@ -462,16 +473,17 @@ struct World {
 
             growthDecisionNet.numberOfInTubes = junc->numInTubes();
             growthDecisionNet.numberOfOutTubes = junc->numOutTubes();
-            growthDecisionNet.averageAngleInTubes = junc->averageAngleInTubes();
-            growthDecisionNet.averageAngleOutTubes = junc->averageAngleOutTubes();
+            growthDecisionNet.averageInTubeAngle = junc->averageAngleInTubes();
+            growthDecisionNet.averageOutTubeAngle = junc->averageAngleOutTubes();
+            growthDecisionNet.energy = junc->energy;
             growthDecisionNet.touchingFoodSource = junc->isTouchingFoodSource();
 
             growthDecisionNet.decideAction();
 
             // TODO detect collision and if collides, put the new junction on nearest tube in the way
 
+
             if (Random::uniform() < growthDecisionNet.growthProbability && junc->energy > MIN_GROWTH_ENERGY) {
-                // Printer::print("Growing tube from junction at (" + to_string(junc->x) + ", " + to_string(junc->y) + ") with angle " + to_string(growthDecisionNet.growthAngle));
                 growTubeFrom(*junc, growthDecisionNet.growthAngle + 
                     Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));                
             }
@@ -554,17 +566,13 @@ struct World {
         // fitness = totalEnergy;
         // return fitness;
 
-        double maxX = 0.0;
-        double minX = 0.0;
+        // centrality of energy distribution
+        double fitnessSum = 0.0;
         for (const auto& junc : junctions) {
-            if (junc->x > maxX) {
-                maxX = junc->x;
-            }
-            if (junc->x < minX) {
-                minX = junc->x;
-            }
+            double dist = sqrt(junc->x * junc->x + junc->y * junc->y);
+            fitnessSum += junc->energy / (1.0 + dist);
         }
-        fitness = maxX - minX;
+        fitness = fitnessSum;
         return fitness;
     }
 };

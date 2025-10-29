@@ -55,7 +55,7 @@ void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
         float length = std::sqrt(dir.x * dir.x + dir.y * dir.y);
         float angle = std::atan2(dir.y, dir.x) * 180 / M_PI;
 
-        sf::RectangleShape thickLine(sf::Vector2f(length, TUBE_THICKNESS)); // 3px thickness
+        sf::RectangleShape thickLine(sf::Vector2f(length, TUBE_THICKNESS * tube.flowRate)); // 3px thickness
         thickLine.setPosition(p1);
         thickLine.setRotation(angle);
         thickLine.setFillColor(sf::Color::Yellow);
@@ -100,29 +100,54 @@ World readWorld(int gen) {
     }
 
     stringstream ss(selectedLine);
-    string genStr, fitnessStr, genomeStr;
+    string genStr, bestFitnessStr, averageFitnessStr, genomeStr;
     getline(ss, genStr, ';');
-    getline(ss, fitnessStr, ';');
+    getline(ss, bestFitnessStr, ';');
+    getline(ss, averageFitnessStr, ';');
     getline(ss, genomeStr, ';');
 
+    // cout << "genomeStr: " << genomeStr << endl;
+
     vector<double> weights;
-    weights.reserve((128 + 19) + (104 + 18));
+    int weights_size = 0;
+    for (const auto& layer_dim : GROW_NET_DIMS) {
+        int in = layer_dim.first;
+        int out = layer_dim.second;
+        weights_size += in * out + out;
+    }
+    for (const auto& layer_dim : FLOW_NET_DIMS) {
+        int in = layer_dim.first;
+        int out = layer_dim.second;
+        weights_size += in * out + out;
+    }
+    weights.reserve(weights_size);
     stringstream rulesStream(genomeStr);
     for (string token; getline(rulesStream, token, ' ');) {
-        weights.push_back(static_cast<double>(stoi(token)));
+        // cout << "token: " << token << endl;
+        weights.push_back(static_cast<double>(stod(token)));
     }
 
-    vector<double> weights_a(weights.begin(), weights.begin() + 128 + 19);
+    int grow_net_size = 0;
+    for (const auto& layer_dim : GROW_NET_DIMS) {
+        int in = layer_dim.first;
+        int out = layer_dim.second;
+        grow_net_size += in * out + out;
+    }
+
+    vector<double> weights_a(weights.begin(), weights.begin() + grow_net_size);
     vector<double> weights_b;
-    weights_b.assign(weights.begin() + 128 + 19, weights.end());
+    weights_b.assign(weights.begin() + grow_net_size, weights.end());
 
     Genome genome;
+    // cout << "weights_a[14]: " << weights_a[14] << endl;
+    // cout << "weights_b[14]: " << weights_b[14] << endl;
     genome.setGenomeValues(weights_a, weights_b);
 
     vector<unique_ptr<Junction>> junctions;
     junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
     vector<unique_ptr<FoodSource>> foodSources;
-    foodSources.push_back(make_unique<FoodSource>(FoodSource{50.0, 0.0, 100.0}));
+    foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
+    // cout << "readWorld: " << genome.getGrowNetValues()[0][14] << endl;
     return World{genome, std::move(junctions), std::move(foodSources)};
 }
 
@@ -173,13 +198,13 @@ int main() {
         drawTubes(window, frames[currentFrame].tubes);
         drawFoodSources(window, frames[currentFrame].foodSources);
         
-        // Display info text
-        sf::Font font;
-        // font.loadFromFile("Arial.ttf"); // or your font
-        sf::Text info("Frame: " + std::to_string(currentFrame), font, 20);
-        info.setFillColor(sf::Color::White);
-        info.setPosition(10, 10);
-        window.draw(info);
+        // // Display info text
+        // sf::Font font;
+        // // font.loadFromFile("Arial.ttf"); // or your font
+        // sf::Text info("Frame: " + std::to_string(currentFrame), font, 20);
+        // info.setFillColor(sf::Color::White);
+        // info.setPosition(10, 10);
+        // window.draw(info);
 
         window.display();
 
