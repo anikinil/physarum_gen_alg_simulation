@@ -263,7 +263,7 @@ struct GrowthDecisionNet {
 
         Layer* layer1 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[0].first, GROW_NET_DIMS[0].second);
         Layer* layer2 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[1].first, GROW_NET_DIMS[1].second);
-        Layer* layer3 = new FullyConnected<Identity>(GROW_NET_DIMS[2].first, GROW_NET_DIMS[2].second);
+        Layer* layer3 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[2].first, GROW_NET_DIMS[2].second);
 
         net.add_layer(layer1);
         net.add_layer(layer2);
@@ -315,7 +315,7 @@ struct FlowDecisionNet {
 
         Layer* layer1 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[0].first, FLOW_NET_DIMS[0].second);
         Layer* layer2 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[1].first, FLOW_NET_DIMS[1].second);
-        Layer* layer3 = new FullyConnected<Identity>(FLOW_NET_DIMS[2].first, FLOW_NET_DIMS[2].second);
+        Layer* layer3 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[2].first, FLOW_NET_DIMS[2].second);
 
         net.add_layer(layer1);
         net.add_layer(layer2);
@@ -528,12 +528,18 @@ struct World {
 
             flowDecisionNet.decideAction();
 
+            // cout << "increase prob: " << flowDecisionNet.increaseFlowProb << ", decrease_prob: " << flowDecisionNet.decreaseFlowProb << endl;
+
             if (Random::uniform() < flowDecisionNet.increaseFlowProb) {
+                // cout << "INCREASE" << endl;
                 tube->flowRate += 1;
             }
             if (Random::uniform() < flowDecisionNet.decreaseFlowProb && tube->flowRate > 0) {
+                // cout << "DECREASE" << endl;
                 tube->flowRate -= 1;
             }
+
+            // cout << "-------------" << endl;
 
             if (tube->flowRate < 0) {
                 std::swap(tube->fromJunction, tube->toJunction);
