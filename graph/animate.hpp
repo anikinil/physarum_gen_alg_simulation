@@ -12,7 +12,7 @@ const int WIN_HEIGHT = 1500;
 const int JUNCTION_RADIUS = 5;
 const int TUBE_THICKNESS = 3;
 
-const float FPS = 5.0f;
+const float FPS = 10.0f;
 
 struct JunctionVisual {
     double x;

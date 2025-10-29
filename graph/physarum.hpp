@@ -16,10 +16,10 @@ using namespace MiniDNN;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::VectorXd Vector;
 
-const double MIN_GROWTH_ENERGY = 2;
+const double MIN_GROWTH_ENERGY = 2.0;
 
 const double DEFAULT_MUTATION_RATE = 0.05;
-const double DEFAULT_FLOW_RATE = 1;
+const double DEFAULT_FLOW_RATE = 1.0;
 
 const double TUBE_LENGTH = 20.0;
 
@@ -36,6 +36,8 @@ struct Genome {
         {5, 8}, // 5 x 8
         {8, 8}, // 8 x 8
         {8, 3}  // 8 x 3
+        // + 8 + 8 + 3 
+        // total: 
     };
 
     const vector<pair<int, int>> FLOW_NET_DIMS = {
@@ -64,7 +66,6 @@ struct Genome {
         }
     }
 
-
     vector<vector<double>> getGrowNetValues() const {
         vector<vector<double>> vals;
         for (size_t i = 0; i < GROW_NET_DIMS.size(); ++i) {
@@ -91,18 +92,42 @@ struct Genome {
         return vals;
     }
 
+    void setGenomeValues(const vector<double>& growVals,
+                         const vector<double>& flowVals) {
+        growNetWeights.clear();
+        flowNetWeights.clear();
+        
+        size_t growIdx = 0;
+        for (const auto& layer_dim : GROW_NET_DIMS) {
+            int in = layer_dim.first;
+            int out = layer_dim.second;
+            size_t weight_size = in * out;
+            size_t bias_size = out;
+
+            vector<double> weights(growVals.begin() + growIdx,
+                                   growVals.begin() + growIdx + weight_size);
+            growNetWeights.push_back(weights);
+            growIdx += weight_size;
+
+            vector<double> biases(growVals.begin() + growIdx,
+                                  growVals.begin() + growIdx + bias_size);
+            growNetWeights.push_back(biases);
+            growIdx += bias_size;
+        }
+    }
+
     void mutate(double mutation_rate = DEFAULT_MUTATION_RATE) {
         for (auto& layer_weights : growNetWeights) {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
-                    weight += clamp(Random::uniform(-0.1, 0.1), 0.0, 1.0);
+                    weight += clamp(Random::uniform(-0.01, 0.01), 0.0, 1.0);
                 }
             }
         }
         for (auto& layer_weights : flowNetWeights) {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
-                    weight += clamp(Random::uniform(-0.1, 0.1), 0.0, 1.0);
+                    weight += clamp(Random::uniform(-0.01, 0.01), 0.0, 1.0);
                 }
             }
         }
@@ -257,7 +282,6 @@ struct GrowthDecisionNet {
 };
 
 struct FlowDecisionNet {
-    Genome genome;
 
     double currentFlowRate = 0.0;
     double inJunctionAverageFlowRate = 0.0;
@@ -302,6 +326,8 @@ struct FlowDecisionNet {
 
 
 struct World {
+    Genome genome;
+
     vector<unique_ptr<Junction>> junctions;
     vector<unique_ptr<Tube>> tubes;
     vector<unique_ptr<FoodSource>> foodSources;
@@ -310,13 +336,22 @@ struct World {
     FlowDecisionNet flowDecisionNet;
     double fitness = 0.0;
     
-    World(const Genome& genome,
+    World(const Genome& g,
         vector<unique_ptr<Junction>>&& js,
         vector<unique_ptr<FoodSource>>&& fs)
-        : growthDecisionNet(genome),
-        flowDecisionNet(genome),
+        : genome(g),
+        growthDecisionNet(g),
+        flowDecisionNet(g),
         junctions(std::move(js)),
         foodSources(std::move(fs)) {}
+
+    Genome getGenome() const {
+        return genome;
+    }
+
+    void mutateGenome(double mutation_rate = DEFAULT_MUTATION_RATE) {
+        genome.mutate(mutation_rate);
+    }
 
     void growTubeFrom(Junction& from, double angle) {
 
@@ -325,13 +360,13 @@ struct World {
 
         // TODO detect collision here
 
-        auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 3});
+        auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 1});
         Junction* newJuncPtr = newJunction.get();
 
-        from.energy -= 3;
+        from.energy -= 1;
 
         auto newTube = std::make_unique<Tube>(Tube{
-            from.x, from.y, newX, newY, 0, &from, newJuncPtr
+            from.x, from.y, newX, newY, 1, &from, newJuncPtr
         });
 
         from.outTubes.push_back({newTube.get(), angle});
@@ -369,15 +404,14 @@ struct World {
         }
 
         for (int step = 0; step < steps; ++step) {
-            this->step();
+            if (save) {
+                this->saveFrame(step);
+            }
             double energySum = 0.0;
             for (const auto& junc : junctions) {
                 energySum += junc->energy;
             }
-            cout << "Step " << step << ": Total energy in the system: " << energySum << endl;
-            if (save) {
-                this->saveFrame(step);
-            }
+            this->step();
         }
     }
 
@@ -442,15 +476,7 @@ struct World {
                     Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));                
             }
 
-            if (junc->isTouchingFoodSource()) {
-                junc->energy += 1.0; // absorb food energy
-                junc->foodSource->energy -= 1.0;
-                if (junc->foodSource->energy < 0) {
-                    junc->foodSource = nullptr; // food source depleted
-                }
-            }
-
-            junc->energy += 0.1 * junc->getSummedFlowRate();
+            junc->energy += 1 * junc->getSummedFlowRate();
         }
     }
 
@@ -506,6 +532,40 @@ struct World {
         }
     }
 
-    void updateFood() {}
+    void updateFood() {
+
+        for (auto& junc : junctions) {
+
+            if (junc->isTouchingFoodSource()) {
+                junc->energy += 1; // absorb food energy
+                junc->foodSource->energy -= 1;
+                if (junc->foodSource->energy < 0) {
+                    junc->foodSource = nullptr; // food source depleted
+                }
+            }
+        }
+    }
+
+    double calculateFitness() {
+        // double totalEnergy = 0.0;
+        // for (const auto& junc : junctions) {
+        //     totalEnergy += junc->energy;
+        // }
+        // fitness = totalEnergy;
+        // return fitness;
+
+        double maxX = 0.0;
+        double minX = 0.0;
+        for (const auto& junc : junctions) {
+            if (junc->x > maxX) {
+                maxX = junc->x;
+            }
+            if (junc->x < minX) {
+                minX = junc->x;
+            }
+        }
+        fitness = maxX - minX;
+        return fitness;
+    }
 };
 

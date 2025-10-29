@@ -1,5 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
+#include <memory>
 
 #include "animate.hpp"
 #include "physarum.hpp"
@@ -10,8 +11,8 @@ using namespace std;
 
 vector<Frame> loadFrames() {
     vector<Frame> frames;
-    ifstream file("data/frames.csv");
-    if (!file) throw runtime_error("Could not open file data/frames.csv");
+    ifstream file("data/animation_frames.csv");
+    if (!file) throw runtime_error("Could not open file data/animation_frames.csv");
 
     string line;
     getline(file, line); // skip header
@@ -73,20 +74,67 @@ void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& f
     }
 }
 
+World readWorld(int gen) {
+
+    ifstream file("data/genome_fitness.csv");
+    if (!file) throw runtime_error("Could not open file");
+
+    string line;
+    getline(file, line); // skip header
+
+    string selectedLine, lastLine;
+    while (getline(file, line)) {
+        lastLine = line;
+        if (gen != -1) {
+            string genStr = line.substr(0, line.find(';'));
+            if (stoi(genStr) == gen) {
+                selectedLine = line;
+                break;
+            }
+        }
+    }
+
+    if (selectedLine.empty()) {
+        cout << "Generation not specified or not found, using last line." << endl;
+        selectedLine = lastLine;
+    }
+
+    stringstream ss(selectedLine);
+    string genStr, fitnessStr, genomeStr;
+    getline(ss, genStr, ';');
+    getline(ss, fitnessStr, ';');
+    getline(ss, genomeStr, ';');
+
+    vector<double> weights;
+    weights.reserve((128 + 19) + (104 + 18));
+    stringstream rulesStream(genomeStr);
+    for (string token; getline(rulesStream, token, ' ');) {
+        weights.push_back(static_cast<double>(stoi(token)));
+    }
+
+    vector<double> weights_a(weights.begin(), weights.begin() + 128 + 19);
+    vector<double> weights_b;
+    weights_b.assign(weights.begin() + 128 + 19, weights.end());
+
+    Genome genome;
+    genome.setGenomeValues(weights_a, weights_b);
+
+    vector<unique_ptr<Junction>> junctions;
+    junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
+    vector<unique_ptr<FoodSource>> foodSources;
+    foodSources.push_back(make_unique<FoodSource>(FoodSource{50.0, 0.0, 100.0}));
+    return World{genome, std::move(junctions), std::move(foodSources)};
+}
+
 
 int main() {
 
-    // initialize world
-    vector<unique_ptr<Junction>> junctions;
-    junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
-    
-    vector<unique_ptr<FoodSource>> foodSources;
-    // foodSources.push_back(make_unique<FoodSource>(FoodSource{0.0, 0.0, 50.0, 100.0}));
+    int gen = -1;
 
-    World world(Genome(), std::move(junctions), std::move(foodSources));
-    
+    World world = readWorld(gen);
+
     // run and save simulation
-    world.run(200, true);
+    world.run(30, true);
 
     // Load saved generation
     vector<Frame> frames = loadFrames();
@@ -118,10 +166,6 @@ int main() {
             }
         }
         
-        if (!paused && currentFrame < frames.size()-1)
-        currentFrame++;
-        
-        
         window.clear();
         
         // Draw objects
@@ -138,6 +182,9 @@ int main() {
         window.draw(info);
 
         window.display();
+
+        if (!paused && currentFrame < frames.size()-1)
+        currentFrame++;
     }
 }
 
