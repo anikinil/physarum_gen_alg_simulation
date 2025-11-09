@@ -39,6 +39,17 @@ vector<Frame> loadFrames() {
     return frames;
 }
 
+
+void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& foodSources) {
+    for (const auto& food : foodSources) {
+        float radius = food.radius;
+        sf::CircleShape shape(radius);
+        shape.setFillColor(sf::Color::White);
+        shape.setPosition(WIN_WIDTH/2 + food.x - radius, WIN_HEIGHT/2 + food.y - radius);
+        window.draw(shape);
+    }
+}
+
 void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junctions) {
     for (const auto& junc : junctions) {
         float radius = 1 + JUNCTION_RADIUS * junc.energy;
@@ -69,14 +80,16 @@ void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
 }
 
 
-void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& foodSources) {
-    for (const auto& food : foodSources) {
-        float radius = food.radius;
-        sf::CircleShape shape(radius);
-        shape.setFillColor(sf::Color::Magenta);
-        shape.setPosition(WIN_WIDTH/2 + food.x - radius, WIN_HEIGHT/2 + food.y - radius);
-        window.draw(shape);
+vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
+    vector<unique_ptr<FoodSource>> foodSources;
+    for (int i = 0; i < NUM_FOOD_SOURCES; ++i) {
+        double x = Random::uniform(-500.0, 500.0);
+        double y = Random::uniform(-500.0, 500.0);
+        double radius = Random::uniform(10.0, 50.0);
+        double energy = Random::uniform(5.0, 15.0);
+        foodSources.push_back(make_unique<FoodSource>(FoodSource{x, y, radius, energy}));
     }
+    return foodSources;
 }
 
 World readWorld(int gen) {
@@ -150,12 +163,10 @@ World readWorld(int gen) {
 
     vector<unique_ptr<Junction>> junctions;
     junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
-    vector<unique_ptr<FoodSource>> foodSources;
-    foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
+    vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
     // cout << "readWorld: " << genome.getGrowNetValues()[0][14] << endl;
     return World{genome, std::move(junctions), std::move(foodSources)};
 }
-
 
 int main() {
 
@@ -219,9 +230,9 @@ int main() {
         window.clear();
         
         // Draw objects
+        drawFoodSources(window, frames[currentFrame].foodSources);
         drawJunctions(window, frames[currentFrame].junctions);
         drawTubes(window, frames[currentFrame].tubes);
-        drawFoodSources(window, frames[currentFrame].foodSources);
         
         // // Display info text
         // sf::Font font;

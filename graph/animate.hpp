@@ -13,7 +13,7 @@ const int JUNCTION_RADIUS = 1.2;
 const int TUBE_THICKNESS = 1;
 
 
-const float FPS = 10.0f;
+const float FPS = 20.0f;
 
 struct JunctionVisual {
     double x;

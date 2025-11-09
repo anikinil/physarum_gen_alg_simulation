@@ -23,7 +23,7 @@ typedef Eigen::VectorXd Vector;
 const double MIN_GROWTH_ENERGY = 2.0;
 
 const double DEFAULT_FLOW_RATE = 1.0;
-const double TUBE_LENGTH = 40.0;
+const double TUBE_LENGTH = 30.0;
 
 
 const vector<pair<int, int>> GROW_NET_DIMS = {
@@ -54,24 +54,28 @@ struct Genome {
     vector<vector<double>> flowNetWeights;
 
     Genome() {
+        // Lambda to generate small random values
+        auto smallRand = [](int n) {
+            return Random::randvec(n, -0.1, 0.1);
+        };
 
         // Initialize weights with random values
         for (const auto& layer_dim : GROW_NET_DIMS) {
             int in = layer_dim.first;
             int out = layer_dim.second;
             // weight matrix (in x out)
-            growNetWeights.push_back(Random::randvec(in * out, 0.0, 1.0));
+            growNetWeights.push_back(smallRand(in * out));
             // bias vector (1 x out)
-            growNetWeights.push_back(Random::randvec(out, 0.0, 1.0));
+            growNetWeights.push_back(smallRand(out));
         }
 
         for (const auto& layer_dim : FLOW_NET_DIMS) {
             int in = layer_dim.first;
             int out = layer_dim.second;
             // weight matrix (in x out)
-            flowNetWeights.push_back(Random::randvec(in * out, 0.0, 1.0));
+            flowNetWeights.push_back(smallRand(in * out));
             // bias vector (1 x out)
-            flowNetWeights.push_back(Random::randvec(out, 0.0, 1.0));
+            flowNetWeights.push_back(smallRand(out));
         }
     }
 
@@ -130,7 +134,7 @@ struct Genome {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
                     double change = Random::uniform(-mutation_strength, mutation_strength);
-                    weight += clamp(change, 0.0, 1.0);
+                    weight += change;
                 }
             }
         }
@@ -138,7 +142,7 @@ struct Genome {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
                     double change = Random::uniform(-mutation_strength, mutation_strength);
-                    weight += clamp(change, 0.0, 1.0);
+                    weight += change;
                 }
             }
         }
@@ -240,7 +244,6 @@ struct FoodSource {
 struct GrowthDecisionNet {
     Genome genome;
 
-
     int numberOfInTubes = 0;
     int numberOfOutTubes = 0;
     double averageInTubeAngle = 0.0;
@@ -255,13 +258,7 @@ struct GrowthDecisionNet {
     Network net;
     Matrix input;
 
-    GrowthDecisionNet(const Genome& genome,
-                    int numberOfInTubes = 0,
-                    int numberOfOutTubes = 0,
-                    double averageInTubeAngle = 0.0,
-                    double averageOutTubeAngle = 0.0,
-                    double energy = 0.0,
-                    bool touchingFoodSource = false) {
+    GrowthDecisionNet(const Genome& genome) {
 
         Layer* layer1 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[0].first, GROW_NET_DIMS[0].second);
         Layer* layer2 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[1].first, GROW_NET_DIMS[1].second);
@@ -270,13 +267,19 @@ struct GrowthDecisionNet {
         net.add_layer(layer1);
         net.add_layer(layer2);
         net.add_layer(layer3);
-        net.set_output(new RegressionMSE());
 
         net.init();
         
         net.set_parameters(genome.getGrowNetValues());
-        
-        
+    }
+    
+    void decideAction(int numberOfInTubes,
+                    int numberOfOutTubes,
+                    double averageInTubeAngle,
+                    double averageOutTubeAngle,
+                    double energy,
+                    bool touchingFoodSource) {
+
         input = Matrix(6, 1);
         input << static_cast<double>(numberOfInTubes),
         static_cast<double>(numberOfOutTubes),
@@ -284,17 +287,12 @@ struct GrowthDecisionNet {
         static_cast<double>(averageOutTubeAngle),
         static_cast<double>(energy),
         static_cast<double>(touchingFoodSource);
-    }
-    
-    void decideAction() {
 
-
-        vector<vector<double>> params = net.get_parameters();
-
+        
         Vector pred = net.predict(input);
         growthProbability = static_cast<double>(pred(0));
-        growthAngle = clamp(static_cast<double>(pred(1)), 0.0, 2 * M_PI); // 0 to 360°
-        angleVariance = clamp(static_cast<double>(pred(2)), 0.0, M_PI); // max 180°
+        growthAngle = static_cast<double>(pred(1) * 2.0 * M_PI);
+        angleVariance = static_cast<double>(pred(2)) * M_PI;
     }
 };
 
@@ -310,10 +308,7 @@ struct FlowDecisionNet {
     Network net;
     Matrix input;
 
-    FlowDecisionNet(const Genome& genome,
-                    double currentFlowRate = 0.0,
-                    double inJunctionAverageFlowRate = 0.0,
-                    double outJunctionAverageFlowRate = 0.0) {
+    FlowDecisionNet(const Genome& genome) {
 
         Layer* layer1 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[0].first, FLOW_NET_DIMS[0].second);
         Layer* layer2 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[1].first, FLOW_NET_DIMS[1].second);
@@ -322,22 +317,22 @@ struct FlowDecisionNet {
         net.add_layer(layer1);
         net.add_layer(layer2);
         net.add_layer(layer3);
-        net.set_output(new RegressionMSE());
 
         net.init();
-        net.set_parameters(genome.getFlowNetValues());
+        net.set_parameters(genome.getFlowNetValues());   
+    }
+
+    void decideAction(double currentFlowRate,
+                    double inJunctionAverageFlowRate,
+                    double outJunctionAverageFlowRate) {
 
         input = Matrix(3, 1);
         input << currentFlowRate,
                 inJunctionAverageFlowRate,
                 outJunctionAverageFlowRate;
-
-    }
-
-    void decideAction() {
         Vector pred = net.predict(input);
-        increaseFlowProb = clamp(static_cast<double>(pred(0)), 0.0, 1.0);
-        decreaseFlowProb = clamp(static_cast<double>(pred(1)), 0.0, 1.0);
+        increaseFlowProb = static_cast<double>(pred(0));
+        decreaseFlowProb = static_cast<double>(pred(1));
     }
 };
 
@@ -370,9 +365,27 @@ struct World {
         genome.mutate(mutation_rate, mutation_strength);
     }
 
-    void growTubeFrom(Junction& from, double angle) {
+    bool touchingFoodSource(const Junction& junc) {
+        for (const auto& fs : foodSources) {
+            double dist = sqrt((junc.x - fs->x) * (junc.x - fs->x) + (junc.y - fs->y) * (junc.y - fs->y));
+            if (dist <= fs->radius) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-        // cout << "Growing tube from junction at (" << from.x << ", " << from.y << ") with angle " << angle << "\n";
+    FoodSource* getFoodSourceAt(const Junction& junc) {
+        for (const auto& fs : foodSources) {
+            double dist = sqrt((junc.x - fs->x) * (junc.x - fs->x) + (junc.y - fs->y) * (junc.y - fs->y));
+            if (dist <= fs->radius) {
+                return fs.get();
+            }
+        }
+        return nullptr;
+    }
+
+    void growTubeFrom(Junction& from, double angle) {
 
         double newX = from.x + TUBE_LENGTH * cos(angle);
         double newY = from.y + TUBE_LENGTH * sin(angle);
@@ -382,9 +395,7 @@ struct World {
         // if no collision, create new junction and tube
         if (collisionInfo.tube == nullptr) {
 
-            // cout << "No collision" << endl;
-
-            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 1});
+            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 0});
             Junction* newJuncPtr = newJunction.get();
 
             auto newTube = std::make_unique<Tube>(Tube{
@@ -395,16 +406,21 @@ struct World {
             from.outTubes.push_back({ newTube.get(), angle });
             newJuncPtr->inTubes.push_back({ newTube.get(), angle });
 
+            if (touchingFoodSource(*newJunction)) {
+                newJuncPtr->foodSource = getFoodSourceAt(*newJunction);
+            }
+
             // add to world
             tubes.push_back(std::move(newTube));
             junctions.push_back(std::move(newJunction));
+
         // if collision, create intersection junction and split existing tube
         } else {
             
             newX = *collisionInfo.x;
             newY = *collisionInfo.y;
     
-            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 1});
+            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 0});
             Junction* newJuncPtr = newJunction.get();
 
             auto newTube = std::make_unique<Tube>(Tube{
@@ -451,12 +467,6 @@ struct World {
             // remove the original existing tube from the world's tubes vector
             tubes.erase(std::remove_if(tubes.begin(), tubes.end(), [&](const std::unique_ptr<Tube>& t) { return t.get() == existing; }),
             tubes.end());
-
-            // cout << "___" << endl;
-            // cout << "New junction created at (" << newJuncPtr->x << ", " << newJuncPtr->y << ")\n";
-            // cout << "Tube grown to new junction from (" << from.x << ", " << from.y << ") to (" << newJuncPtr->x << ", " << newJuncPtr->y << ")\n";
-            // cout << "Tube segment A from (" << segA->x1 << ", " << segA->y1 << ") to (" << segA->x2 << ", " << segA->y2 << ")\n";
-            // cout << "Tube segment B from (" << segB->x1 << ", " << segB->y1 << ") to (" << segB->x2 << ", " << segB->y2 << ")\n";
             
             // add updated objects to world
             tubes.push_back(std::move(newTube));
@@ -465,8 +475,8 @@ struct World {
             junctions.push_back(std::move(newJunction));
         }
         
-        from.energy -= 1;
-        from.energy -= 0.05; // cost of growing
+        // from.energy -= 1.0; // energy passed to new junction
+        // from.energy -= 0.05; // cost of growing
     }
 
     // Axis-aligned bounding box overlap check
@@ -604,21 +614,24 @@ struct World {
             
             Junction* junc = junctions[i].get();
 
-            growthDecisionNet.numberOfInTubes = junc->numInTubes();
-            growthDecisionNet.numberOfOutTubes = junc->numOutTubes();
-            growthDecisionNet.averageInTubeAngle = junc->averageAngleInTubes();
-            growthDecisionNet.averageOutTubeAngle = junc->averageAngleOutTubes();
-            growthDecisionNet.energy = junc->energy;
-            growthDecisionNet.touchingFoodSource = junc->isTouchingFoodSource();
+            int numInTubes = junc->numInTubes();
+            int numOutTubes = junc->numOutTubes();
+            double averageAngleIn = junc->averageAngleInTubes();
+            double averageAngleOut = junc->averageAngleOutTubes();
+            double energy = junc->energy;
+            bool touchingFoodSource = junc->isTouchingFoodSource();
 
-            growthDecisionNet.decideAction();
+            growthDecisionNet.decideAction(numInTubes,
+                                           numOutTubes,
+                                           averageAngleIn,
+                                           averageAngleOut,
+                                           energy,
+                                           touchingFoodSource);
 
-            if (Random::uniform() < growthDecisionNet.growthProbability && junc->energy > MIN_GROWTH_ENERGY) {
+            if (Random::uniform() < growthDecisionNet.growthProbability && energy > MIN_GROWTH_ENERGY) {
                 growTubeFrom(
                     *junc,
-                    growthDecisionNet.growthAngle
-                        + Random::uniform(-growthDecisionNet.angleVariance,
-                    growthDecisionNet.angleVariance));
+                    growthDecisionNet.growthAngle + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
             }
         }
     }
@@ -627,8 +640,9 @@ struct World {
         // 1. Collect pointers to dead junctions
         std::vector<Junction*> dead;
         for (auto& j : junctions)
-            if (j->energy <= 0)
+            if (j->energy <= 0) {
                 dead.push_back(j.get());
+            }
 
         // 2. Remove tubes connected to dead junctions
         tubes.erase(
@@ -658,10 +672,13 @@ struct World {
             tube->toJunction->energy += 0.1 * tube->flowRate;
             
             // let flow rate decision net decide on flow rate changes
-            flowDecisionNet.currentFlowRate = tube->flowRate;
-            flowDecisionNet.inJunctionAverageFlowRate = static_cast<double>(tube->fromJunction->getSummedFlowRate());
-            flowDecisionNet.outJunctionAverageFlowRate = static_cast<double>(-tube->toJunction->getSummedFlowRate());
-            flowDecisionNet.decideAction();
+            double currFlowRate = tube->flowRate;
+            double inJunctionAverageFlowRate = static_cast<double>(tube->fromJunction->getSummedFlowRate());
+            double outJunctionAverageFlowRate = static_cast<double>(tube->toJunction->getSummedFlowRate());
+
+            flowDecisionNet.decideAction(currFlowRate,
+                                        inJunctionAverageFlowRate,
+                                        outJunctionAverageFlowRate);
 
             // adjust flow rate based on decision net
             if (Random::uniform() < flowDecisionNet.increaseFlowProb) {
@@ -697,12 +714,11 @@ struct World {
 
     double calculateFitness() {
         
-        double energyDist = 0.0;
+        double totalEnergy = 0.0;
         for (const auto& junc : junctions) {
-            double dist = sqrt(junc->x * junc->x + junc->y * junc->y);
-            energyDist += junc->energy * dist;
+            totalEnergy += junc->energy;
         }
-        return energyDist;
+        fitness = totalEnergy;
+        return fitness;
     }
 };
-

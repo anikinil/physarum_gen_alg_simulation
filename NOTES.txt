@@ -2,7 +2,8 @@
 
 TODO:
 
-- grwoth cost based on tube length (because tubes do not reach their max size if they collide)
+- growth cost based on tube length (because tubes do not reach their max size if they collide)
+- find good place for createRandomizedFoodSources function
 
 Animation:
 - drag and drop, to move view around

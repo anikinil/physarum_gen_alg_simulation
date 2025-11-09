@@ -1,5 +1,6 @@
 #include "gen_alg.hpp"
 #include "physarum.hpp"
+#include "utils.hpp"
 
 #include <vector>
 #include <iostream>
@@ -17,6 +18,21 @@
 
 using namespace std;
 
+
+
+vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
+    vector<unique_ptr<FoodSource>> foodSources;
+    for (int i = 0; i < NUM_FOOD_SOURCES; ++i) {
+        double x = Random::uniform(-500.0, 500.0);
+        double y = Random::uniform(-500.0, 500.0);
+        double radius = Random::uniform(10.0, 50.0);
+        double energy = Random::uniform(5.0, 15.0);
+        foodSources.push_back(make_unique<FoodSource>(FoodSource{x, y, radius, energy}));
+    }
+    return foodSources;
+}
+
+
 vector<unique_ptr<World>> generateInitialPopulation() {
     vector<unique_ptr<World>> population;
 
@@ -24,9 +40,7 @@ vector<unique_ptr<World>> generateInitialPopulation() {
 
         vector<unique_ptr<Junction>> junctions;
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
-        vector<unique_ptr<FoodSource>> foodSources;
-        foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
-
+        vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
         auto world = make_unique<World>(Genome(), std::move(junctions), std::move(foodSources));
         population.push_back(std::move(world));
     }
@@ -176,8 +190,7 @@ void runGeneticAlgorithm() {
 
                     vector<unique_ptr<Junction>> junctions;
                     junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
-                    vector<unique_ptr<FoodSource>> foodSources;
-                    foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
+                    vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
                     ind->junctions = std::move(junctions);
                     ind->foodSources = std::move(foodSources);
                 }

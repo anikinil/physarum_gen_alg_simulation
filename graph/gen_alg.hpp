@@ -1,15 +1,21 @@
 #include <random>
 #include <vector>
+#include <memory>
 
-const int NUM_GENERATIONS = 10000;
-const int POPULATION_SIZE = 30;
-const int NUM_TRIES = 8;
+using namespace std;
+
+const int NUM_GENERATIONS = 1000;
+const int POPULATION_SIZE = 100;
+const int NUM_TRIES = 4;
 
 const int NUM_STEPS = 50;
 
 const float ELITE_PROPORTION = 0.15f;
 
 const double DEFAULT_MUTATION_RATE = 0.1;
-const double MUTATION_STRENGTH = 0.5;
+const double MUTATION_STRENGTH = 0.3;
 
 const double INITIAL_ENERGY = 20.0;
+
+const int NUM_FOOD_SOURCES = 0;
+
