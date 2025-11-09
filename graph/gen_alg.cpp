@@ -25,7 +25,7 @@ vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
     for (int i = 0; i < NUM_FOOD_SOURCES; ++i) {
         double x = Random::uniform(-500.0, 500.0);
         double y = Random::uniform(-500.0, 500.0);
-        double radius = Random::uniform(10.0, 50.0);
+        double radius = Random::uniform(5.0, 20.0);
         double energy = Random::uniform(5.0, 15.0);
         foodSources.push_back(make_unique<FoodSource>(FoodSource{x, y, radius, energy}));
     }

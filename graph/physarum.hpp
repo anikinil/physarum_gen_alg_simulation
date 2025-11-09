@@ -467,6 +467,7 @@ struct World {
             replaceAll(origFrom, existing, segA.get());
             replaceAll(origTo, existing, segB.get());
 
+
             // remove the original existing tube from the world's tubes vector
             tubes.erase(std::remove_if(tubes.begin(), tubes.end(), [&](const std::unique_ptr<Tube>& t) { return t.get() == existing; }),
             tubes.end());
@@ -477,7 +478,9 @@ struct World {
             tubes.push_back(std::move(segB));
             junctions.push_back(std::move(newJunction));
         }
-        
+
+
+
         from.energy -= DEFAULT_JUNCTION_ENERGY; // energy passed to new junction
         from.energy -= GROWING_COST; // cost of growing
     }
@@ -606,11 +609,8 @@ struct World {
 
     void step() {
         updateJunctions();
-        cout << "HERE1" << endl;
         updateTubes();
-        cout << "HERE2" << endl;
         updateFood();
-        cout << "HERE3" << endl;
         // calculateFitness();
     }
 
@@ -644,42 +644,44 @@ struct World {
 
         removeDeadJunctionsAndTubes();
 
-        cout << "HERE1.1" << endl;
+        // Remove any dangling TubeInfo references from junctions (tubes that are no longer present)
+        auto tubeExists = [&](Tube* t) {
+            if (!t) return false;
+            for (const auto& ut : tubes) {
+                if (ut.get() == t) return true;
+            }
+            return false;
+        };
+
+        for (auto& j : junctions) {
+            auto& in = j->inTubes;
+            in.erase(std::remove_if(in.begin(), in.end(),
+                        [&](const Junction::TubeInfo& ti) { return !tubeExists(ti.tube); }),
+                     in.end());
+            auto& out = j->outTubes;
+            out.erase(std::remove_if(out.begin(), out.end(),
+                        [&](const Junction::TubeInfo& ti) { return !tubeExists(ti.tube); }),
+                      out.end());
+        }
 
         size_t existingCount = junctions.size();
 
         for (size_t i = 0; i < existingCount; ++i) {
 
-            cout << "HERE1.2." << i << endl;
-            
-            
+            // be defensive: the junction pointer might have been removed by previous operations
+            if (i >= junctions.size()) break;
             Junction* junc = junctions[i].get();
-            cout << "Junction energy: " << junc->energy << endl;
-            cout << "Junction in tubes: " << junc->inTubes.size() << endl;
-            cout << "Junction out tubes: " << junc->outTubes.size() << endl;
-
-            for (auto& tubeInfo : junc->inTubes) {
-                cout << "In tube flow rate: " << tubeInfo.tube->flowRate << endl;
-                cout << "Tube toJunction: " << tubeInfo.tube->toJunction<< endl;
-                cout << "Tube fromJunction: " << tubeInfo.tube->fromJunction<< endl;
-                cout << "Tube from junction coords: (" << tubeInfo.tube->fromJunction->x << ", " << tubeInfo.tube->fromJunction->y << ")" << endl;
-                cout << "In tube from junction energy: " << tubeInfo.tube->fromJunction->energy << endl;
-            }
-            for (auto& tubeInfo : junc->outTubes) {
-                cout << "Out tube to junction energy: " << tubeInfo.tube->toJunction->energy << endl;
-            }
+            if (!junc) continue;
 
             // handle energy movement
 
             // incoming tubes
             for (auto& inTubeInfo : junc->inTubes) {
                 Tube* tube = inTubeInfo.tube;
+                if (!tube || !tube->fromJunction) continue; // guard against dangling pointers
                 double flow = tube->flowRate;
-                cout << "Incoming tube flow: " << flow << endl;
-                cout << "From junction energy: " << tube->fromJunction->energy << endl;
                 if (flow > tube->fromJunction->energy) {
                     flow = tube->fromJunction->energy; // limit flow by available energy
-                    cout << "Limiting incoming flow to: " << flow << endl;
                 }
                 junc->energy += flow;
                 tube->fromJunction->energy -= flow;
@@ -687,8 +689,8 @@ struct World {
             // outgoing tubes
             for (auto& outTubeInfo : junc->outTubes) {
                 Tube* tube = outTubeInfo.tube;
+                if (!tube || !tube->toJunction) continue; // guard against dangling pointers
                 double flow = tube->flowRate;
-                cout << "Outgoing tube flow: " << flow << endl;
                 if (flow > junc->energy) {
                     flow = junc->energy; // limit flow by available energy
                 }
@@ -697,9 +699,6 @@ struct World {
             }
 
             if (junc->energy < 1e-12) continue; // depleted junctions can't grow
-
-            cout << "HERE1.2.-" << endl;
-
 
             // handle growth decision
 
@@ -723,8 +722,6 @@ struct World {
                     growthDecisionNet.growthAngle + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
             }
         }
-
-        cout << "HERE1.3" << endl;
     }
     
     void updateTubes() {
