@@ -4,6 +4,7 @@ TODO:
 
 - growth cost based on tube length (because tubes do not reach their max size if they collide)
 - find good place for createRandomizedFoodSources function
+- find out why fitness values higher than expected
 
 Animation:
 - drag and drop, to move view around
