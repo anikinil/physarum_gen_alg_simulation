@@ -116,8 +116,7 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
     for (int i = 0; i < numElite; i++) {
         vector<unique_ptr<Junction>> junctions;
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
-        vector<unique_ptr<FoodSource>> foodSources;
-        foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
+        vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
 
         nextGeneration.push_back(make_unique<World>(currentPopulation[i]->getGenome(), std::move(junctions), std::move(foodSources)));
     }
@@ -138,8 +137,7 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         // Create new World with child genome
         vector<unique_ptr<Junction>> junctions;
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
-        vector<unique_ptr<FoodSource>> foodSources;
-        foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
+        vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
 
         auto childWorld = make_unique<World>(childGenome, std::move(junctions), std::move(foodSources));
         nextGeneration.push_back(std::move(childWorld));
@@ -179,8 +177,8 @@ void runGeneticAlgorithm() {
             for (int t = 0; t < NUM_TRIES; t++) {
 
                 ind->run(NUM_STEPS, false);
-                double fitness = ind->calculateFitness();
-                ind_fitnesses.push_back(fitness);
+                ind->calculateFitness();
+                ind_fitnesses.push_back(ind->fitness);
 
                 if (t < NUM_TRIES - 1) {
                     // Reset world for next try

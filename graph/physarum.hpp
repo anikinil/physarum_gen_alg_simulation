@@ -565,11 +565,14 @@ struct World {
                  << "f_x,f_y,f_radius,f_energy\n";
         }
 
-        for (int step = 0; step < steps; ++step) {
+        if (save) {
+            this->saveFrame(0);
+        }
+        for (int step = 1; step <= steps; ++step) {
+            this->step();
             if (save) {
                 this->saveFrame(step);
             }
-            this->step();
         }
     }
 
@@ -602,11 +605,15 @@ struct World {
     }
 
     void step() {
-        updateTubes();
         updateJunctions();
+        cout << "HERE1" << endl;
+        updateTubes();
+        cout << "HERE2" << endl;
         updateFood();
+        cout << "HERE3" << endl;
+        // calculateFitness();
     }
-    
+
     void removeDeadJunctionsAndTubes() {
         // 1. Collect pointers to dead junctions
         std::vector<Junction*> dead;
@@ -624,25 +631,77 @@ struct World {
                     }),
                     tubes.end());
 
-                    // 3. Remove the dead junctions themselves
-                    junctions.erase(
+        // 3. Remove the dead junctions themselves
+        junctions.erase(
             std::remove_if(junctions.begin(), junctions.end(),
                 [](const std::unique_ptr<Junction>& j) {
                     return j->energy <= 0;
                 }),
                 junctions.end());
-            }
-            
+    }
 
     void updateJunctions() {
 
         removeDeadJunctionsAndTubes();
 
+        cout << "HERE1.1" << endl;
+
         size_t existingCount = junctions.size();
 
         for (size_t i = 0; i < existingCount; ++i) {
+
+            cout << "HERE1.2." << i << endl;
+            
             
             Junction* junc = junctions[i].get();
+            cout << "Junction energy: " << junc->energy << endl;
+            cout << "Junction in tubes: " << junc->inTubes.size() << endl;
+            cout << "Junction out tubes: " << junc->outTubes.size() << endl;
+
+            for (auto& tubeInfo : junc->inTubes) {
+                cout << "In tube flow rate: " << tubeInfo.tube->flowRate << endl;
+                cout << "Tube toJunction: " << tubeInfo.tube->toJunction<< endl;
+                cout << "Tube fromJunction: " << tubeInfo.tube->fromJunction<< endl;
+                cout << "Tube from junction coords: (" << tubeInfo.tube->fromJunction->x << ", " << tubeInfo.tube->fromJunction->y << ")" << endl;
+                cout << "In tube from junction energy: " << tubeInfo.tube->fromJunction->energy << endl;
+            }
+            for (auto& tubeInfo : junc->outTubes) {
+                cout << "Out tube to junction energy: " << tubeInfo.tube->toJunction->energy << endl;
+            }
+
+            // handle energy movement
+
+            // incoming tubes
+            for (auto& inTubeInfo : junc->inTubes) {
+                Tube* tube = inTubeInfo.tube;
+                double flow = tube->flowRate;
+                cout << "Incoming tube flow: " << flow << endl;
+                cout << "From junction energy: " << tube->fromJunction->energy << endl;
+                if (flow > tube->fromJunction->energy) {
+                    flow = tube->fromJunction->energy; // limit flow by available energy
+                    cout << "Limiting incoming flow to: " << flow << endl;
+                }
+                junc->energy += flow;
+                tube->fromJunction->energy -= flow;
+            }
+            // outgoing tubes
+            for (auto& outTubeInfo : junc->outTubes) {
+                Tube* tube = outTubeInfo.tube;
+                double flow = tube->flowRate;
+                cout << "Outgoing tube flow: " << flow << endl;
+                if (flow > junc->energy) {
+                    flow = junc->energy; // limit flow by available energy
+                }
+                junc->energy -= flow;
+                tube->toJunction->energy += flow;
+            }
+
+            if (junc->energy < 1e-12) continue; // depleted junctions can't grow
+
+            cout << "HERE1.2.-" << endl;
+
+
+            // handle growth decision
 
             int numInTubes = junc->numInTubes();
             int numOutTubes = junc->numOutTubes();
@@ -664,19 +723,13 @@ struct World {
                     growthDecisionNet.growthAngle + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
             }
         }
+
+        cout << "HERE1.3" << endl;
     }
     
     void updateTubes() {
 
         for (auto& tube : tubes) {
-
-            // move energy through the tube
-            tube->fromJunction->energy -= tube->flowRate;
-            tube->toJunction->energy += tube->flowRate;
-
-            // clamp junction energies to zero to prevent noise
-            if (tube->fromJunction->energy < 1e-12) tube->fromJunction->energy = 0.0;
-            if (tube->toJunction->energy < 1e-12) tube->toJunction->energy = 0.0;
 
             // let flow rate decision net decide on flow rate changes
             double currFlowRate = tube->flowRate;
@@ -723,13 +776,12 @@ struct World {
         }
     }
 
-    double calculateFitness() {
+    void calculateFitness() {
         
         double totalEnergy = 0.0;
         for (const auto& junc : junctions) {
             totalEnergy += junc->energy;
         }
         fitness = totalEnergy;
-        return fitness;
     }
 };

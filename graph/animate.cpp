@@ -33,6 +33,20 @@ vector<Frame> loadFrames() {
         }
 
         currentFrame.addObject(line);
+
+        // if (step < 30) {
+        //     cout << "-------"  << endl;
+        //     cout << "Step: " << currentStep << ", Junctions: " << currentFrame.junctions.size() << endl;
+        //     for (size_t i = 0; i < currentFrame.junctions.size(); i++) {
+        //         cout << " Junc " << i << ": ";
+        //         cout << currentFrame.junctions[i].x << ", " << currentFrame.junctions[i].y << ", " << currentFrame.junctions[i].energy << endl;
+        //     }
+        //     double totalEnergy = 0.0;
+        //     for (const auto& j : currentFrame.junctions) {
+        //         totalEnergy += j.energy;
+        //     }
+        //     cout << "Total energy: " << totalEnergy << endl;
+        // }
     }
 
     if (currentStep != -1) frames.push_back(std::move(currentFrame));
@@ -52,11 +66,6 @@ void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& f
 
 void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junctions) {
     for (const auto& junc : junctions) {
-
-        if (junc.energy < 0) {
-            cout << "Junction with negative energy found " << junc.x << ", " << junc.y << " energy: " << junc.energy << endl;
-            cout << 1 + JUNCTION_RADIUS * junc.energy << endl;
-        }
 
         int radius = static_cast<int>(1 + JUNCTION_RADIUS * junc.energy);
         sf::CircleShape shape(radius);
@@ -118,10 +127,7 @@ World readWorld(int gen) {
         }
     }
 
-    if (selectedLine.empty()) {
-        cout << "Generation not specified or not found, using last line." << endl;
-        selectedLine = lastLine;
-    }
+    if (selectedLine.empty()) selectedLine = lastLine;
 
     stringstream ss(selectedLine);
     string genStr, bestFitnessStr, averageFitnessStr, genomeStr;
@@ -229,8 +235,8 @@ int main() {
 
         double totalEnergy = accumulate(
             frames[currentFrame].junctions.begin(),
-            frames[currentFrame].junctions.end(), 0,
-            [](int sum, const JunctionVisual& j) { return sum + j.energy; }
+            frames[currentFrame].junctions.end(), 0.0,
+            [](double sum, const JunctionVisual& j) { return sum + j.energy; }
         );
 
         window.setTitle("Energy: " + std::to_string(totalEnergy) + " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
