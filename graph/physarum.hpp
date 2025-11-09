@@ -21,8 +21,11 @@ typedef Eigen::MatrixXd Matrix;
 typedef Eigen::VectorXd Vector;
 
 const double MIN_GROWTH_ENERGY = 2.0;
+const double DEFAULT_JUNCTION_ENERGY = 1.0;
+const double GROWING_COST = 0.0; // 0.05;
 
-const double DEFAULT_FLOW_RATE = 1.0;
+const double DEFAULT_FLOW_RATE = 0.1;
+const double FLOW_RATE_CHANGE_STEP = 0.1;
 const double TUBE_LENGTH = 30.0;
 
 
@@ -395,11 +398,11 @@ struct World {
         // if no collision, create new junction and tube
         if (collisionInfo.tube == nullptr) {
 
-            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 0});
+            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, DEFAULT_JUNCTION_ENERGY});
             Junction* newJuncPtr = newJunction.get();
 
             auto newTube = std::make_unique<Tube>(Tube{
-                from.x, from.y, newX, newY, 1, &from, newJuncPtr
+                from.x, from.y, newX, newY, DEFAULT_FLOW_RATE, &from, newJuncPtr
             });
 
             // connect tubes to junctions
@@ -419,12 +422,12 @@ struct World {
             
             newX = *collisionInfo.x;
             newY = *collisionInfo.y;
-    
-            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 0});
+
+            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, DEFAULT_JUNCTION_ENERGY});
             Junction* newJuncPtr = newJunction.get();
 
             auto newTube = std::make_unique<Tube>(Tube{
-                from.x, from.y, newX, newY, 1, &from, newJuncPtr
+                from.x, from.y, newX, newY, DEFAULT_FLOW_RATE, &from, newJuncPtr
             });
             
             // split the existing tube at the intersection point and connect both pieces to the new junction
@@ -475,8 +478,8 @@ struct World {
             junctions.push_back(std::move(newJunction));
         }
         
-        // from.energy -= 1.0; // energy passed to new junction
-        // from.energy -= 0.05; // cost of growing
+        from.energy -= DEFAULT_JUNCTION_ENERGY; // energy passed to new junction
+        from.energy -= GROWING_COST; // cost of growing
     }
 
     // Axis-aligned bounding box overlap check
@@ -668,9 +671,9 @@ struct World {
         for (auto& tube : tubes) {
 
             // move energy through the tube
-            tube->fromJunction->energy -= 0.1 * tube->flowRate;
-            tube->toJunction->energy += 0.1 * tube->flowRate;
-            
+            tube->fromJunction->energy -= tube->flowRate;
+            tube->toJunction->energy += tube->flowRate;
+
             // let flow rate decision net decide on flow rate changes
             double currFlowRate = tube->flowRate;
             double inJunctionAverageFlowRate = static_cast<double>(tube->fromJunction->getSummedFlowRate());
@@ -682,10 +685,10 @@ struct World {
 
             // adjust flow rate based on decision net
             if (Random::uniform() < flowDecisionNet.increaseFlowProb) {
-                tube->flowRate += 1;
+                tube->flowRate += FLOW_RATE_CHANGE_STEP;
             }
             if (Random::uniform() < flowDecisionNet.decreaseFlowProb && tube->flowRate > 0) {
-                tube->flowRate -= 1;
+                tube->flowRate -= FLOW_RATE_CHANGE_STEP;
             }
 
             // rearrange tube direction if flow rate changes to negative
