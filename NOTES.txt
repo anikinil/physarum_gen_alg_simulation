@@ -1,0 +1,9 @@
+
+
+TODO:
+
+- grwoth cost based on tube length (because tubes do not reach their max size if they collide)
+
+Animation:
+- drag and drop, to move view around
+- show object info on hover

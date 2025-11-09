@@ -635,7 +635,7 @@ struct World {
             std::remove_if(tubes.begin(), tubes.end(),
                 [&](const std::unique_ptr<Tube>& t) {
                     return std::find(dead.begin(), dead.end(), t->fromJunction) != dead.end() ||
-                        std::find(dead.begin(), dead.end(), t->toJunction)   != dead.end();
+                        std::find(dead.begin(), dead.end(), t->toJunction) != dead.end();
                 }),
             tubes.end());
 

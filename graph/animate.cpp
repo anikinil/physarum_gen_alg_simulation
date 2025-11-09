@@ -41,9 +41,10 @@ vector<Frame> loadFrames() {
 
 void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junctions) {
     for (const auto& junc : junctions) {
-        sf::CircleShape shape(JUNCTION_RADIUS);
+        float radius = 1 + JUNCTION_RADIUS * junc.energy;
+        sf::CircleShape shape(radius);
         shape.setFillColor(sf::Color::Yellow);
-        shape.setPosition(WIN_WIDTH/2 + junc.x - JUNCTION_RADIUS, WIN_HEIGHT/2 + junc.y - JUNCTION_RADIUS);
+        shape.setPosition(WIN_WIDTH/2 + junc.x - radius, WIN_HEIGHT/2 + junc.y - radius);
         window.draw(shape);
     }
 }
@@ -51,7 +52,7 @@ void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junct
 void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
     for (const auto& tube : tubes) {
 
-        double thickness = TUBE_THICKNESS * tube.flowRate;
+        double thickness = 1 + TUBE_THICKNESS * tube.flowRate;
 
         sf::Vector2f p1(WIN_WIDTH/2 + tube.x1, WIN_HEIGHT/2 + tube.y1 - thickness / 2);
         sf::Vector2f p2(WIN_WIDTH/2 + tube.x2, WIN_HEIGHT/2 + tube.y2 - thickness / 2);
