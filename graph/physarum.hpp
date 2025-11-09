@@ -602,10 +602,37 @@ struct World {
     }
 
     void step() {
-        updateJunctions();
         updateTubes();
+        updateJunctions();
         updateFood();
     }
+    
+    void removeDeadJunctionsAndTubes() {
+        // 1. Collect pointers to dead junctions
+        std::vector<Junction*> dead;
+        for (auto& j : junctions)
+        if (j->energy <= 0) {
+            dead.push_back(j.get());
+        }
+        
+        // 2. Remove tubes connected to dead junctions
+        tubes.erase(
+            std::remove_if(tubes.begin(), tubes.end(),
+                [&](const std::unique_ptr<Tube>& t) {
+                    return std::find(dead.begin(), dead.end(), t->fromJunction) != dead.end() ||
+                        std::find(dead.begin(), dead.end(), t->toJunction) != dead.end();
+                    }),
+                    tubes.end());
+
+                    // 3. Remove the dead junctions themselves
+                    junctions.erase(
+            std::remove_if(junctions.begin(), junctions.end(),
+                [](const std::unique_ptr<Junction>& j) {
+                    return j->energy <= 0;
+                }),
+                junctions.end());
+            }
+            
 
     void updateJunctions() {
 
@@ -625,11 +652,11 @@ struct World {
             bool touchingFoodSource = junc->isTouchingFoodSource();
 
             growthDecisionNet.decideAction(numInTubes,
-                                           numOutTubes,
-                                           averageAngleIn,
-                                           averageAngleOut,
-                                           energy,
-                                           touchingFoodSource);
+                                            numOutTubes,
+                                            averageAngleIn,
+                                            averageAngleOut,
+                                            energy,
+                                            touchingFoodSource);
 
             if (Random::uniform() < growthDecisionNet.growthProbability && energy > MIN_GROWTH_ENERGY) {
                 growTubeFrom(
@@ -638,33 +665,6 @@ struct World {
             }
         }
     }
-
-    void removeDeadJunctionsAndTubes() {
-        // 1. Collect pointers to dead junctions
-        std::vector<Junction*> dead;
-        for (auto& j : junctions)
-            if (j->energy <= 0) {
-                dead.push_back(j.get());
-            }
-
-        // 2. Remove tubes connected to dead junctions
-        tubes.erase(
-            std::remove_if(tubes.begin(), tubes.end(),
-                [&](const std::unique_ptr<Tube>& t) {
-                    return std::find(dead.begin(), dead.end(), t->fromJunction) != dead.end() ||
-                        std::find(dead.begin(), dead.end(), t->toJunction) != dead.end();
-                }),
-            tubes.end());
-
-        // 3. Remove the dead junctions themselves
-        junctions.erase(
-            std::remove_if(junctions.begin(), junctions.end(),
-                [](const std::unique_ptr<Junction>& j) {
-                    return j->energy <= 0;
-                }),
-            junctions.end());
-    }
-
     
     void updateTubes() {
 
@@ -673,6 +673,10 @@ struct World {
             // move energy through the tube
             tube->fromJunction->energy -= tube->flowRate;
             tube->toJunction->energy += tube->flowRate;
+
+            // clamp junction energies to zero to prevent noise
+            if (tube->fromJunction->energy < 1e-12) tube->fromJunction->energy = 0.0;
+            if (tube->toJunction->energy < 1e-12) tube->toJunction->energy = 0.0;
 
             // let flow rate decision net decide on flow rate changes
             double currFlowRate = tube->flowRate;
@@ -691,6 +695,9 @@ struct World {
                 tube->flowRate -= FLOW_RATE_CHANGE_STEP;
             }
 
+            // clamp flow rate to zero to prevent noise
+            if (tube->flowRate < 1e-12) tube->flowRate = 0.0;
+
             // rearrange tube direction if flow rate changes to negative
             if (tube->flowRate < 0) {
                 std::swap(tube->fromJunction, tube->toJunction);
@@ -698,6 +705,7 @@ struct World {
                 tube->fromJunction->switchTubeDirection(*tube);
                 tube->toJunction->switchTubeDirection(*tube);
             }
+
         }
     }
 

@@ -52,7 +52,13 @@ void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& f
 
 void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junctions) {
     for (const auto& junc : junctions) {
-        float radius = 1 + JUNCTION_RADIUS * junc.energy;
+
+        if (junc.energy < 0) {
+            cout << "Junction with negative energy found " << junc.x << ", " << junc.y << " energy: " << junc.energy << endl;
+            cout << 1 + JUNCTION_RADIUS * junc.energy << endl;
+        }
+
+        int radius = static_cast<int>(1 + JUNCTION_RADIUS * junc.energy);
         sf::CircleShape shape(radius);
         shape.setFillColor(sf::Color::Yellow);
         shape.setPosition(WIN_WIDTH/2 + junc.x - radius, WIN_HEIGHT/2 + junc.y - radius);
@@ -189,6 +195,7 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(WIN_WIDTH, WIN_HEIGHT), "Physarum Simulation");
 
     sf::View view(sf::FloatRect(0, 0, WIN_WIDTH, WIN_HEIGHT));
+    view.zoom(DEFAULT_ZOOM);
     window.setView(view);
 
     while (window.isOpen()) {

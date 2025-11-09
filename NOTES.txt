@@ -2,9 +2,11 @@
 
 TODO:
 
+- find out why fitness values higher than expected
+
 - growth cost based on tube length (because tubes do not reach their max size if they collide)
 - find good place for createRandomizedFoodSources function
-- find out why fitness values higher than expected
+- how to deal with multiple collisions at one growth step?
 
 Animation:
 - drag and drop, to move view around
