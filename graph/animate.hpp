@@ -9,7 +9,7 @@ using namespace std;
 const int WIN_WIDTH = 2000;
 const int WIN_HEIGHT = 1500;
 
-const int JUNCTION_RADIUS = 1.2;
+const double JUNCTION_RADIUS_FACTOR = 3.0;
 const int TUBE_THICKNESS = 1;
 
 const float FPS = 20.0f;

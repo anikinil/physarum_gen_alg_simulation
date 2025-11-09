@@ -8,7 +8,7 @@ const int NUM_GENERATIONS = 1;
 const int POPULATION_SIZE = 10;
 const int NUM_TRIES = 1;
 
-const int NUM_STEPS = 5;
+const int NUM_STEPS = 20;
 
 const float ELITE_PROPORTION = 0.15f;
 

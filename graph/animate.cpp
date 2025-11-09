@@ -67,7 +67,7 @@ void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& f
 void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junctions) {
     for (const auto& junc : junctions) {
 
-        int radius = static_cast<int>(1 + JUNCTION_RADIUS * junc.energy);
+        int radius = 1 + JUNCTION_RADIUS_FACTOR * sqrt(junc.energy / 3.14); // scale radius with energy
         sf::CircleShape shape(radius);
         shape.setFillColor(sf::Color::Yellow);
         shape.setPosition(WIN_WIDTH/2 + junc.x - radius, WIN_HEIGHT/2 + junc.y - radius);
