@@ -4,6 +4,7 @@
 
 #include "animate.hpp"
 #include "physarum.hpp"
+#include "gen_alg.hpp"
 
 
 using namespace std;
@@ -49,13 +50,16 @@ void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junct
 
 void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
     for (const auto& tube : tubes) {
-        sf::Vector2f p1(WIN_WIDTH/2 + tube.x1, WIN_HEIGHT/2 + tube.y1);
-        sf::Vector2f p2(WIN_WIDTH/2 + tube.x2, WIN_HEIGHT/2 + tube.y2);
+
+        double thickness = TUBE_THICKNESS * tube.flowRate;
+
+        sf::Vector2f p1(WIN_WIDTH/2 + tube.x1, WIN_HEIGHT/2 + tube.y1 - thickness / 2);
+        sf::Vector2f p2(WIN_WIDTH/2 + tube.x2, WIN_HEIGHT/2 + tube.y2 - thickness / 2);
         sf::Vector2f dir = p2 - p1;
         float length = std::sqrt(dir.x * dir.x + dir.y * dir.y);
         float angle = std::atan2(dir.y, dir.x) * 180 / M_PI;
 
-        sf::RectangleShape thickLine(sf::Vector2f(length, TUBE_THICKNESS * tube.flowRate)); // 3px thickness
+        sf::RectangleShape thickLine(sf::Vector2f(length, thickness));
         thickLine.setPosition(p1);
         thickLine.setRotation(angle);
         thickLine.setFillColor(sf::Color::Yellow);
@@ -144,7 +148,7 @@ World readWorld(int gen) {
     genome.setGenomeValues(weights_a, weights_b);
 
     vector<unique_ptr<Junction>> junctions;
-    junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
+    junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
     vector<unique_ptr<FoodSource>> foodSources;
     foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
     // cout << "readWorld: " << genome.getGrowNetValues()[0][14] << endl;
@@ -159,7 +163,7 @@ int main() {
     World world = readWorld(gen);
 
     // run and save simulation
-    world.run(30, true);
+    world.run(NUM_STEPS, true);
 
     // Load saved generation
     vector<Frame> frames = loadFrames();
@@ -171,8 +175,10 @@ int main() {
     const float targetFrameTime = 1.f / FPS;
 
     sf::RenderWindow window(sf::VideoMode(WIN_WIDTH, WIN_HEIGHT), "Physarum Simulation");
-    window.setFramerateLimit(60);
-    
+
+    sf::View view(sf::FloatRect(0, 0, WIN_WIDTH, WIN_HEIGHT));
+    window.setView(view);
+
     while (window.isOpen()) {
         sf::sleep(sf::seconds(targetFrameTime) - clock.getElapsedTime());
         clock.restart();
@@ -180,7 +186,7 @@ int main() {
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
-            window.close();
+                window.close();
             else if (event.type == sf::Event::KeyPressed) {
                 if (event.key.code == sf::Keyboard::Space)
                 paused = !paused;
@@ -188,9 +194,27 @@ int main() {
                 currentFrame = min(currentFrame + 1, frames.size()-1);
                 if (paused && event.key.code == sf::Keyboard::Left)
                 currentFrame = (currentFrame == 0 ? 0 : currentFrame - 1);
+            } else if (event.type == sf::Event::MouseWheelScrolled) {
+                sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
+                sf::Vector2f beforeZoom = window.mapPixelToCoords(pixelPos, view);
+                float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.9f : 1.1f;
+                view.zoom(zoomFactor);
+                sf::Vector2f afterZoom = window.mapPixelToCoords(pixelPos, view);
+                sf::Vector2f offset = beforeZoom - afterZoom;
+                view.move(offset);
+                window.setView(view);
             }
         }
-        
+
+        window.setView(view);
+
+        double totalEnergy = accumulate(
+            frames[currentFrame].junctions.begin(),
+            frames[currentFrame].junctions.end(), 0,
+            [](int sum, const JunctionVisual& j) { return sum + j.energy; }
+        );
+
+        window.setTitle("Energy: " + std::to_string(totalEnergy) + " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
         window.clear();
         
         // Draw objects
@@ -208,8 +232,12 @@ int main() {
 
         window.display();
 
-        if (!paused && currentFrame < frames.size()-1)
-        currentFrame++;
+        if (!paused) {
+            if (currentFrame < frames.size()-1)
+                currentFrame++;
+            else
+                paused = true;
+        }
     }
 }
 

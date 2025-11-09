@@ -23,7 +23,7 @@ vector<unique_ptr<World>> generateInitialPopulation() {
     for (int i = 0; i < POPULATION_SIZE; i++) {
 
         vector<unique_ptr<Junction>> junctions;
-        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 50.0}));
+        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
         vector<unique_ptr<FoodSource>> foodSources;
         foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
 
@@ -101,7 +101,7 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
     int numElite = POPULATION_SIZE * ELITE_PROPORTION;
     for (int i = 0; i < numElite; i++) {
         vector<unique_ptr<Junction>> junctions;
-        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
+        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
         vector<unique_ptr<FoodSource>> foodSources;
         foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
 
@@ -119,11 +119,11 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
                          childGenome);
 
         // Mutate child genome
-        childGenome.mutate(DEFAULT_MUTATION_RATE);
+        childGenome.mutate(DEFAULT_MUTATION_RATE, MUTATION_STRENGTH);
 
         // Create new World with child genome
         vector<unique_ptr<Junction>> junctions;
-        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 100.0}));
+        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
         vector<unique_ptr<FoodSource>> foodSources;
         foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
 
@@ -134,6 +134,16 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
     return nextGeneration;
 }
 
+void printETA(int currentGeneration, const vector<chrono::duration<double>>& gen_durations) {
+    if (gen_durations.empty()) return;
+    double avg_gen_time = std::accumulate(gen_durations.begin(), gen_durations.end(), 0.0, [](double sum, const auto& d) { return sum + d.count(); }) / gen_durations.size();
+    double remaining_seconds = (NUM_GENERATIONS - currentGeneration - 1) * avg_gen_time;
+    long long remaining = static_cast<long long>(remaining_seconds + 0.5); // round to nearest second
+    long long hours = remaining / 3600;
+    long long minutes = (remaining % 3600) / 60;
+    cout << "Estimated time remaining: " << hours << " hours " << minutes << " minutes\n";
+}
+
 void runGeneticAlgorithm() {
     vector<std::unique_ptr<World>> population = generateInitialPopulation();
 
@@ -142,7 +152,7 @@ void runGeneticAlgorithm() {
 
     for (int gen = 0; gen < NUM_GENERATIONS; gen++) {
 
-        double averageFitness = 0.0f;
+        auto gen_start = std::chrono::high_resolution_clock::now();
 
         cout << "-----------------------------------\n";
         cout << "Generation " << gen+1 << "/" << NUM_GENERATIONS << "\n";
@@ -150,48 +160,58 @@ void runGeneticAlgorithm() {
         
         for (const auto& ind : population) {
 
-            vector<double> fitnesses;
+            vector<double> ind_fitnesses;
             
             for (int t = 0; t < NUM_TRIES; t++) {
 
                 ind->run(NUM_STEPS, false);
                 double fitness = ind->calculateFitness();
-                ind->fitness = fitness;
-                fitnesses.push_back(fitness);
+                ind_fitnesses.push_back(fitness);
 
-                // Reset world for next try
-                ind->junctions.clear();
-                ind->tubes.clear();
-                ind->foodSources.clear();
+                if (t < NUM_TRIES - 1) {
+                    // Reset world for next try
+                    ind->junctions.clear();
+                    ind->tubes.clear();
+                    ind->foodSources.clear();
 
-                vector<unique_ptr<Junction>> junctions;
-                junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, 50.0}));
-                vector<unique_ptr<FoodSource>> foodSources;
-                foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
-                ind->junctions = std::move(junctions);
-                ind->foodSources = std::move(foodSources);
+                    vector<unique_ptr<Junction>> junctions;
+                    junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
+                    vector<unique_ptr<FoodSource>> foodSources;
+                    foodSources.push_back(make_unique<FoodSource>(FoodSource{500.0, 0.0, 100.0, 100.0}));
+                    ind->junctions = std::move(junctions);
+                    ind->foodSources = std::move(foodSources);
+                }
             }
 
-            double min_fitness = *min_element(fitnesses.begin(), fitnesses.end());
+            ind->fitness = *min_element(ind_fitnesses.begin(), ind_fitnesses.end());
         }
 
-
-        double bestFitness = population.front()->fitness;
-        averageFitness = accumulate(population.begin(), population.end(), 0.0, [](double sum, const unique_ptr<World>& w) { return sum + w->fitness; }) / population.size();
-
         sortByFitness(population);
+        
+        double bestFitness = population.front()->fitness;
+        double averageFitness = accumulate(population.begin(), population.end(), 0.0, [](double sum, const unique_ptr<World>& w) { return sum + w->fitness; }) / population.size();
+        
         saveGenomeAndFitness(population.front()->getGenome(), bestFitness, averageFitness, gen);
-
 
         cout << "Population sorted by fitness.\n";
         for (size_t i = 0; i < population.size(); i++) {
             cout << " " << population[i]->fitness;
             if (i < population.size() - 1) cout << ", ";
         }
-        cout << "\nBest fitness: " << bestFitness << endl;
+        cout << endl;
+
+        cout << "-----------------------------------" << endl;
+        cout << "Best fitness: " << bestFitness << endl;
         cout << "Average fitness: " << averageFitness << endl;
 
         population = createNextGeneration(population);
+
+        // ==== Timing and ETA ====
+        auto gen_end = chrono::high_resolution_clock::now();
+        gen_durations.push_back(gen_end - gen_start);
+        cout << "Generation time: " << gen_durations.back().count() << " seconds.\n";
+
+        printETA(gen, gen_durations);
     }
 }
 

@@ -3,6 +3,10 @@
 #include <numeric>
 #include <algorithm>
 #include <filesystem>
+#include <optional>
+#include <utility>
+#include <cmath>
+
 
 #include "utils.hpp"
 
@@ -18,11 +22,8 @@ typedef Eigen::VectorXd Vector;
 
 const double MIN_GROWTH_ENERGY = 2.0;
 
-const double DEFAULT_MUTATION_RATE = 1.0;
-const double MUTATION_STRENGTH = 0.2;
-
 const double DEFAULT_FLOW_RATE = 1.0;
-const double TUBE_LENGTH = 20.0;
+const double TUBE_LENGTH = 40.0;
 
 
 const vector<pair<int, int>> GROW_NET_DIMS = {
@@ -34,9 +35,10 @@ const vector<pair<int, int>> GROW_NET_DIMS = {
 };
 
 const vector<pair<int, int>> FLOW_NET_DIMS = {
-    {3, 8},
-    {8, 8},
-    {8, 2}
+    {3, 8}, // 3 x 8
+    {8, 8}, // 8 x 8
+    {8, 2}  // 8 x 2
+    // + 8 + 8 + 2
     // total: 122
 };
 // total genome size: 277
@@ -123,11 +125,11 @@ struct Genome {
         }
     }
 
-    void mutate(double mutation_rate = DEFAULT_MUTATION_RATE) {
+    void mutate(double mutation_rate, double mutation_strength) {
         for (auto& layer_weights : growNetWeights) {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
-                    double change = Random::uniform(-MUTATION_STRENGTH, MUTATION_STRENGTH);
+                    double change = Random::uniform(-mutation_strength, mutation_strength);
                     weight += clamp(change, 0.0, 1.0);
                 }
             }
@@ -135,7 +137,7 @@ struct Genome {
         for (auto& layer_weights : flowNetWeights) {
             for (auto& weight : layer_weights) {
                 if (Random::uniform() < mutation_rate) {
-                    double change = Random::uniform(-MUTATION_STRENGTH, MUTATION_STRENGTH);
+                    double change = Random::uniform(-mutation_strength, mutation_strength);
                     weight += clamp(change, 0.0, 1.0);
                 }
             }
@@ -364,32 +366,164 @@ struct World {
         return genome;
     }
 
-    void mutateGenome(double mutation_rate = DEFAULT_MUTATION_RATE) {
-        genome.mutate(mutation_rate);
+    void mutateGenome(double mutation_rate, double mutation_strength) {
+        genome.mutate(mutation_rate, mutation_strength);
     }
 
     void growTubeFrom(Junction& from, double angle) {
 
+        // cout << "Growing tube from junction at (" << from.x << ", " << from.y << ") with angle " << angle << "\n";
+
         double newX = from.x + TUBE_LENGTH * cos(angle);
         double newY = from.y + TUBE_LENGTH * sin(angle);
 
-        // TODO detect collision here
+        auto collisionInfo = getCollisionInfo(from, newX, newY);
 
-        auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 1});
-        Junction* newJuncPtr = newJunction.get();
+        // if no collision, create new junction and tube
+        if (collisionInfo.tube == nullptr) {
 
+            // cout << "No collision" << endl;
+
+            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 1});
+            Junction* newJuncPtr = newJunction.get();
+
+            auto newTube = std::make_unique<Tube>(Tube{
+                from.x, from.y, newX, newY, 1, &from, newJuncPtr
+            });
+
+            // connect tubes to junctions
+            from.outTubes.push_back({ newTube.get(), angle });
+            newJuncPtr->inTubes.push_back({ newTube.get(), angle });
+
+            // add to world
+            tubes.push_back(std::move(newTube));
+            junctions.push_back(std::move(newJunction));
+        // if collision, create intersection junction and split existing tube
+        } else {
+
+            
+            newX = *collisionInfo.x;
+            newY = *collisionInfo.y;
+            // cout << "Collision at " << newX << " " << newY << endl;
+    
+            auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 1});
+            Junction* newJuncPtr = newJunction.get();
+
+            auto newTube = std::make_unique<Tube>(Tube{
+                from.x, from.y, newX, newY, 1, &from, newJuncPtr
+            });
+            
+            // split the existing tube at the intersection point and connect both pieces to the new junction
+            Tube* existing = collisionInfo.tube;
+            Junction* origFrom = existing->fromJunction;
+            Junction* origTo = existing->toJunction;
+            double existingFlow = existing->flowRate;
+
+            // create two new tube segments: segment A = origFrom -> newJunc, segment B = newJunc -> origTo
+            auto segA = std::make_unique<Tube>(Tube{
+                existing->x1, existing->y1,   // keep original start coords
+                newX, newY,
+                existingFlow,
+                origFrom,
+                newJuncPtr
+            });
+
+            auto segB = std::make_unique<Tube>(Tube{
+                newX, newY,
+                existing->x2, existing->y2,   // keep original end coords
+                existingFlow,
+                newJuncPtr,
+                origTo
+            });
+
+            
+            // Update junction lists: replace references to existing tube with the new segments where appropriate.
+            
+            auto replaceAll = [&](Junction* j, Tube* oldT, Tube* newT) {
+                for (auto& ti : j->inTubes)
+                    if (ti.tube == oldT) ti.tube = newT;
+                for (auto& ti : j->outTubes)
+                    if (ti.tube == oldT) ti.tube = newT;
+            };
+
+            // replace in origFrom and origTo junctions
+            replaceAll(origFrom, existing, segA.get());
+            replaceAll(origTo, existing, segB.get());
+
+            // remove the original existing tube from the world's tubes vector
+            tubes.erase(std::remove_if(tubes.begin(), tubes.end(), [&](const std::unique_ptr<Tube>& t) { return t.get() == existing; }),
+            tubes.end());
+
+            // cout << "___" << endl;
+            // cout << "New junction created at (" << newJuncPtr->x << ", " << newJuncPtr->y << ")\n";
+            // cout << "Tube grown to new junction from (" << from.x << ", " << from.y << ") to (" << newJuncPtr->x << ", " << newJuncPtr->y << ")\n";
+            // cout << "Tube segment A from (" << segA->x1 << ", " << segA->y1 << ") to (" << segA->x2 << ", " << segA->y2 << ")\n";
+            // cout << "Tube segment B from (" << segB->x1 << ", " << segB->y1 << ") to (" << segB->x2 << ", " << segB->y2 << ")\n";
+            
+            // add the two new segments to tubes
+            tubes.push_back(std::move(segA));
+            tubes.push_back(std::move(segB));
+        }
+        
         from.energy -= 1;
-
-        auto newTube = std::make_unique<Tube>(Tube{
-            from.x, from.y, newX, newY, 1, &from, newJuncPtr
-        });
-
-        from.outTubes.push_back({newTube.get(), angle});
-        newJuncPtr->inTubes.push_back({newTube.get(), angle + M_PI});
-
-        tubes.push_back(std::move(newTube));
-        junctions.push_back(std::move(newJunction));
+        from.energy -= 0.05; // cost of growing
     }
+
+    // Axis-aligned bounding box overlap check
+    bool bboxOverlap(double x1a, double y1a, double x2a, double y2a,
+                     double x1b, double y1b, double x2b, double y2b) {
+        double minAx = std::min(x1a, x2a), maxAx = std::max(x1a, x2a);
+        double minAy = std::min(y1a, y2a), maxAy = std::max(y1a, y2a);
+        double minBx = std::min(x1b, x2b), maxBx = std::max(x1b, x2b);
+        double minBy = std::min(y1b, y2b), maxBy = std::max(y1b, y2b);
+
+        return !(maxAx < minBx || maxBx < minAx || maxAy < minBy || maxBy < minAy);
+    }
+
+    optional<pair<double, double>> getSegmentIntersection(
+        double x1, double y1, double x2, double y2,
+        double x3, double y3, double x4, double y4) {
+        double denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        if (std::fabs(denom) < 1e-9) return std::nullopt; // parallel or coincident
+
+        double px = ((x1 * y2 - y1 * x2) * (x3 - x4) - 
+                    (x1 - x2) * (x3 * y4 - y3 * x4)) / denom;
+        double py = ((x1 * y2 - y1 * x2) * (y3 - y4) - 
+                    (y1 - y2) * (x3 * y4 - y3 * x4)) / denom;
+
+        auto within = [](double a, double b, double c) {
+            return c >= std::min(a, b) - 1e-9 && c <= std::max(a, b) + 1e-9;
+        };
+
+        if (within(x1, x2, px) && within(y1, y2, py) &&
+            within(x3, x4, px) && within(y3, y4, py)) {
+            return std::make_pair(px, py);
+        }
+
+        return std::nullopt;
+    }
+
+
+    struct CollisionInfo {
+        std::optional<double> x;
+        std::optional<double> y;
+        Tube* tube = nullptr;
+    };
+
+    CollisionInfo getCollisionInfo(Junction& fromJunc, double& newX, double& newY) {
+
+        for (const auto& tube : tubes) {
+            if ((tube->fromJunction == &fromJunc) || (tube->toJunction == &fromJunc)) continue;
+            if (!bboxOverlap(fromJunc.x, fromJunc.y, newX, newY, tube->x1, tube->y1, tube->x2, tube->y2)) continue;
+
+            // calculate intersection
+            if (auto intersection = getSegmentIntersection(fromJunc.x, fromJunc.y, newX, newY, tube->x1, tube->y1, tube->x2, tube->y2)) {
+                return CollisionInfo{intersection->first, intersection->second, tube.get()};
+            }
+        }
+        return {std::nullopt, std::nullopt, nullptr};
+    }
+
 
     void run(int steps = 100, bool save = false) {
 
@@ -480,15 +614,17 @@ struct World {
 
             growthDecisionNet.decideAction();
 
-            // TODO detect collision and if collides, put the new junction on nearest tube in the way
-
-
+            
             if (Random::uniform() < growthDecisionNet.growthProbability && junc->energy > MIN_GROWTH_ENERGY) {
-                growTubeFrom(*junc, growthDecisionNet.growthAngle + 
-                    Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));                
-            }
 
-            junc->energy += 1 * junc->getSummedFlowRate();
+
+                growTubeFrom(
+                    *junc,
+                    growthDecisionNet.growthAngle
+                        + Random::uniform(-growthDecisionNet.angleVariance,
+                    growthDecisionNet.angleVariance));
+            }
+            // junc->energy += 1 * junc->getSummedFlowRate();
         }
     }
 
@@ -521,26 +657,26 @@ struct World {
     void updateTubes() {
 
         for (auto& tube : tubes) {
+
+            // move energy through the tube
+            tube->fromJunction->energy -= 0.1 * tube->flowRate;
+            tube->toJunction->energy += 0.1 * tube->flowRate;
             
+            // let flow rate decision net decide on flow rate changes
             flowDecisionNet.currentFlowRate = tube->flowRate;
             flowDecisionNet.inJunctionAverageFlowRate = static_cast<double>(tube->fromJunction->getSummedFlowRate());
             flowDecisionNet.outJunctionAverageFlowRate = static_cast<double>(-tube->toJunction->getSummedFlowRate());
-
             flowDecisionNet.decideAction();
 
-            // cout << "increase prob: " << flowDecisionNet.increaseFlowProb << ", decrease_prob: " << flowDecisionNet.decreaseFlowProb << endl;
-
+            // adjust flow rate based on decision net
             if (Random::uniform() < flowDecisionNet.increaseFlowProb) {
-                // cout << "INCREASE" << endl;
                 tube->flowRate += 1;
             }
             if (Random::uniform() < flowDecisionNet.decreaseFlowProb && tube->flowRate > 0) {
-                // cout << "DECREASE" << endl;
                 tube->flowRate -= 1;
             }
 
-            // cout << "-------------" << endl;
-
+            // rearrange tube direction if flow rate changes to negative
             if (tube->flowRate < 0) {
                 std::swap(tube->fromJunction, tube->toJunction);
                 tube->flowRate = -tube->flowRate;
@@ -566,13 +702,12 @@ struct World {
 
     double calculateFitness() {
         
-        double fitnessSum = 0.0;
+        double energyDist = 0.0;
         for (const auto& junc : junctions) {
             double dist = sqrt(junc->x * junc->x + junc->y * junc->y);
-            fitnessSum += junc->energy * dist;
+            energyDist += junc->energy * dist;
         }
-        fitness = fitnessSum;
-        return fitness;
+        return energyDist;
     }
 };
 
