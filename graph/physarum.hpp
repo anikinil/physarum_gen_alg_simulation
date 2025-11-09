@@ -400,11 +400,9 @@ struct World {
             junctions.push_back(std::move(newJunction));
         // if collision, create intersection junction and split existing tube
         } else {
-
             
             newX = *collisionInfo.x;
             newY = *collisionInfo.y;
-            // cout << "Collision at " << newX << " " << newY << endl;
     
             auto newJunction = std::make_unique<Junction>(Junction{newX, newY, 1});
             Junction* newJuncPtr = newJunction.get();
@@ -460,9 +458,11 @@ struct World {
             // cout << "Tube segment A from (" << segA->x1 << ", " << segA->y1 << ") to (" << segA->x2 << ", " << segA->y2 << ")\n";
             // cout << "Tube segment B from (" << segB->x1 << ", " << segB->y1 << ") to (" << segB->x2 << ", " << segB->y2 << ")\n";
             
-            // add the two new segments to tubes
+            // add updated objects to world
+            tubes.push_back(std::move(newTube));
             tubes.push_back(std::move(segA));
             tubes.push_back(std::move(segB));
+            junctions.push_back(std::move(newJunction));
         }
         
         from.energy -= 1;
@@ -600,7 +600,6 @@ struct World {
 
         size_t existingCount = junctions.size();
 
-
         for (size_t i = 0; i < existingCount; ++i) {
             
             Junction* junc = junctions[i].get();
@@ -614,17 +613,13 @@ struct World {
 
             growthDecisionNet.decideAction();
 
-            
             if (Random::uniform() < growthDecisionNet.growthProbability && junc->energy > MIN_GROWTH_ENERGY) {
-
-
                 growTubeFrom(
                     *junc,
                     growthDecisionNet.growthAngle
                         + Random::uniform(-growthDecisionNet.angleVariance,
                     growthDecisionNet.angleVariance));
             }
-            // junc->energy += 1 * junc->getSummedFlowRate();
         }
     }
 

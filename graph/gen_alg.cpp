@@ -141,7 +141,7 @@ void printETA(int currentGeneration, const vector<chrono::duration<double>>& gen
     long long remaining = static_cast<long long>(remaining_seconds + 0.5); // round to nearest second
     long long hours = remaining / 3600;
     long long minutes = (remaining % 3600) / 60;
-    cout << "Estimated time remaining: " << hours << " hours " << minutes << " minutes\n";
+    cout << "Estimated time remaining: " << hours << " hours " << minutes << " minutes" << endl;
 }
 
 void runGeneticAlgorithm() {
@@ -154,9 +154,9 @@ void runGeneticAlgorithm() {
 
         auto gen_start = std::chrono::high_resolution_clock::now();
 
-        cout << "-----------------------------------\n";
-        cout << "Generation " << gen+1 << "/" << NUM_GENERATIONS << "\n";
-        cout << "-----------------------------------\n";
+        cout << "-----------------------------------" << endl;
+        cout << "Generation " << gen+1 << "/" << NUM_GENERATIONS << endl;
+        cout << "-----------------------------------" << endl;
         
         for (const auto& ind : population) {
 
@@ -193,7 +193,7 @@ void runGeneticAlgorithm() {
         
         saveGenomeAndFitness(population.front()->getGenome(), bestFitness, averageFitness, gen);
 
-        cout << "Population sorted by fitness.\n";
+        cout << "Population sorted by fitness." << endl;
         for (size_t i = 0; i < population.size(); i++) {
             cout << " " << population[i]->fitness;
             if (i < population.size() - 1) cout << ", ";
