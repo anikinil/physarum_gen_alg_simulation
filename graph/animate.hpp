@@ -13,7 +13,7 @@ const double JUNCTION_RADIUS_FACTOR = 3.0;
 const int TUBE_THICKNESS = 1;
 
 const float FPS = 20.0f;
-const float DEFAULT_ZOOM = 0.3f;
+const float DEFAULT_ZOOM = 0.5f;
 
 
 struct JunctionVisual {

@@ -22,7 +22,7 @@ typedef Eigen::VectorXd Vector;
 
 const double MIN_GROWTH_ENERGY = 2.0;
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
-const double GROWING_COST = 0.0; // 0.05;
+const double GROWING_COST = 0.0;
 
 const double DEFAULT_FLOW_RATE = 0.1;
 const double FLOW_RATE_CHANGE_STEP = 0.1;

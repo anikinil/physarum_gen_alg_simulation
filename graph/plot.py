@@ -1,7 +1,6 @@
 import csv
 
 import matplotlib.pyplot as plt
-
 def plot_csv(filename):
 
     generations = []
@@ -24,6 +23,7 @@ def plot_csv(filename):
     plt.title('Genetic Algorithm Progress')
     plt.legend()
     plt.grid(True)
+    plt.ylim(bottom=0)
     plt.show()
 
 if __name__ == "__main__":
