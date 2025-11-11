@@ -20,31 +20,35 @@ using namespace MiniDNN;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::VectorXd Vector;
 
-const double MIN_GROWTH_ENERGY = 2.0;
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
-const double GROWING_COST = 0.0;
+const double GROWING_COST = 0.5;
+const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
+const double PASSIVE_ENERGY_LOSS_FACTOR = 0.999;
 
-const double DEFAULT_FLOW_RATE = 0.1;
-const double FLOW_RATE_CHANGE_STEP = 0.1;
-const double TUBE_LENGTH = 30.0;
+const int MAX_TUBES_PER_JUNCTION = 3;
+const double DEFAULT_FLOW_RATE = 0.01;
+const double FLOW_RATE_CHANGE_STEP = 0.01;
+const double TUBE_LENGTH = 20.0;
 
 
 const vector<pair<int, int>> GROW_NET_DIMS = {
     {6, 8}, // 6 x 8
     {8, 8}, // 8 x 8
-    {8, 3}  // 8 x 3
-    // + 8 + 8 + 3 
-    // total: 155
+    {8, 5}, // 8 x 5
+    {5, 3}  // 5 x 3
+    // + 8 + 8 + 5 + 3
+    // total: 215
 };
 
 const vector<pair<int, int>> FLOW_NET_DIMS = {
-    {3, 8}, // 3 x 8
-    {8, 8}, // 8 x 8
-    {8, 2}  // 8 x 2
-    // + 8 + 8 + 2
-    // total: 122
+    {3, 5}, // 3 x 5
+    {5, 6}, // 5 x 6
+    {6, 4}, // 6 x 4
+    {4, 2}  // 4 x 2
+    // + 5 + 6 + 4 + 2
+    // total: 94
 };
-// total genome size: 277
+// total genome size: 309
 
 
 struct Junction;
@@ -59,7 +63,7 @@ struct Genome {
     Genome() {
         // Lambda to generate small random values
         auto smallRand = [](int n) {
-            return Random::randvec(n, -0.1, 0.1);
+            return Random::randvec(n, 0.0, 0.0);
         };
 
         // Initialize weights with random values
@@ -187,14 +191,14 @@ struct Junction {
     }
 
     double averageAngleInTubes() {
-        if (inTubes.empty()) return -1.0;
+        if (inTubes.empty()) return Random::uniform(0.0, 2.0 * M_PI);
         double sum = accumulate(inTubes.begin(), inTubes.end(), 0.0,
             [](double acc, const TubeInfo& ti) { return acc + ti.angle; });
         return sum / inTubes.size();
     }
 
     double averageAngleOutTubes() {
-        if (outTubes.empty()) return -1.0;
+        if (outTubes.empty()) return Random::uniform(0.0, 2.0 * M_PI);
         double sum = accumulate(outTubes.begin(), outTubes.end(), 0.0,
             [](double acc, const TubeInfo& ti) { return acc + ti.angle; });
         return sum / outTubes.size();
@@ -232,6 +236,10 @@ struct Junction {
             return;
         }
     }
+
+    int getTotalTubes() {
+        return inTubes.size() + outTubes.size();
+    }
 };  
 
 
@@ -263,16 +271,12 @@ struct GrowthDecisionNet {
 
     GrowthDecisionNet(const Genome& genome) {
 
-        Layer* layer1 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[0].first, GROW_NET_DIMS[0].second);
-        Layer* layer2 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[1].first, GROW_NET_DIMS[1].second);
-        Layer* layer3 = new FullyConnected<Sigmoid>(GROW_NET_DIMS[2].first, GROW_NET_DIMS[2].second);
-
-        net.add_layer(layer1);
-        net.add_layer(layer2);
-        net.add_layer(layer3);
+        for (const auto& dim : GROW_NET_DIMS) {
+            Layer* layer = new FullyConnected<Sigmoid>(dim.first, dim.second);
+            net.add_layer(layer);
+        }
 
         net.init();
-        
         net.set_parameters(genome.getGrowNetValues());
     }
     
@@ -296,6 +300,10 @@ struct GrowthDecisionNet {
         growthProbability = static_cast<double>(pred(0));
         growthAngle = static_cast<double>(pred(1) * 2.0 * M_PI);
         angleVariance = static_cast<double>(pred(2)) * M_PI;
+
+        cout << "Growth Decision Net Output: Prob=" << pred(0)
+             << ", Angle=" << pred(1)
+             << ", Variance=" << pred(2) << endl;
     }
 };
 
@@ -313,13 +321,10 @@ struct FlowDecisionNet {
 
     FlowDecisionNet(const Genome& genome) {
 
-        Layer* layer1 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[0].first, FLOW_NET_DIMS[0].second);
-        Layer* layer2 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[1].first, FLOW_NET_DIMS[1].second);
-        Layer* layer3 = new FullyConnected<Sigmoid>(FLOW_NET_DIMS[2].first, FLOW_NET_DIMS[2].second);
-
-        net.add_layer(layer1);
-        net.add_layer(layer2);
-        net.add_layer(layer3);
+        for (const auto& dim : FLOW_NET_DIMS) {
+            Layer* layer = new FullyConnected<Sigmoid>(dim.first, dim.second);
+            net.add_layer(layer);
+        }
 
         net.init();
         net.set_parameters(genome.getFlowNetValues());   
@@ -336,6 +341,9 @@ struct FlowDecisionNet {
         Vector pred = net.predict(input);
         increaseFlowProb = static_cast<double>(pred(0));
         decreaseFlowProb = static_cast<double>(pred(1));
+
+        cout << "Flow Decision Net Output: IncreaseProb=" << increaseFlowProb
+             << ", DecreaseProb=" << decreaseFlowProb << endl;
     }
 };
 
@@ -478,8 +486,6 @@ struct World {
             tubes.push_back(std::move(segB));
             junctions.push_back(std::move(newJunction));
         }
-
-
 
         from.energy -= DEFAULT_JUNCTION_ENERGY; // energy passed to new junction
         from.energy -= GROWING_COST; // cost of growing
@@ -642,7 +648,7 @@ struct World {
 
     void updateJunctions() {
 
-        removeDeadJunctionsAndTubes();
+        // removeDeadJunctionsAndTubes();
 
         // Remove any dangling TubeInfo references from junctions (tubes that are no longer present)
         auto tubeExists = [&](Tube* t) {
@@ -679,26 +685,26 @@ struct World {
             for (auto& inTubeInfo : junc->inTubes) {
                 Tube* tube = inTubeInfo.tube;
                 if (!tube || !tube->fromJunction) continue; // guard against dangling pointers
-                double flow = tube->flowRate;
-                if (flow > tube->fromJunction->energy) {
-                    flow = tube->fromJunction->energy; // limit flow by available energy
-                }
-                junc->energy += flow;
-                tube->fromJunction->energy -= flow;
+                double energyAmount = tube->fromJunction->energy * tube->flowRate;
+                // if (energyAmount > tube->fromJunction->energy) {
+                //     energyAmount = tube->fromJunction->energy; // limit flow by available energy
+                // }
+                tube->fromJunction->energy -= energyAmount;
+                junc->energy += energyAmount;
             }
             // outgoing tubes
             for (auto& outTubeInfo : junc->outTubes) {
                 Tube* tube = outTubeInfo.tube;
                 if (!tube || !tube->toJunction) continue; // guard against dangling pointers
-                double flow = tube->flowRate;
-                if (flow > junc->energy) {
-                    flow = junc->energy; // limit flow by available energy
-                }
-                junc->energy -= flow;
-                tube->toJunction->energy += flow;
+                double energyAmount = junc->energy * tube->flowRate;
+                // if (energyAmount > junc->energy) {
+                //     energyAmount = junc->energy; // limit flow by available energy
+                // }
+                junc->energy -= energyAmount;
+                tube->toJunction->energy += energyAmount;
             }
 
-            if (junc->energy < 1e-12) continue; // depleted junctions can't grow
+            // if (junc->energy < 1e-12) continue; // depleted junctions can't grow
 
             // handle growth decision
 
@@ -716,11 +722,14 @@ struct World {
                                             energy,
                                             touchingFoodSource);
 
-            if (Random::uniform() < growthDecisionNet.growthProbability && energy > MIN_GROWTH_ENERGY) {
+            if (junc->getTotalTubes() < MAX_TUBES_PER_JUNCTION && Random::uniform() < growthDecisionNet.growthProbability && energy > MIN_GROWTH_ENERGY) {
                 growTubeFrom(
                     *junc,
-                    growthDecisionNet.growthAngle + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
+                    (averageAngleIn + averageAngleOut) / 2.0 + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
             }
+
+            // passive energy loss
+            junc->energy *= PASSIVE_ENERGY_LOSS_FACTOR;
         }
     }
     
@@ -780,5 +789,15 @@ struct World {
             totalEnergy += junc->energy;
         }
         fitness = totalEnergy;
+
+        // energy centrality-based fitness
+
+        // double centralityScore = 0.0;
+        // for (const auto& junc : junctions) {
+        //     double distToCenter = sqrt(junc->x * junc->x + junc->y * junc->y);
+        //     double centrality = 1.0 / (1.0 + distToCenter);
+        //     centralityScore += junc->energy * centrality;
+        // }
+        // fitness = centralityScore;
     }
 };

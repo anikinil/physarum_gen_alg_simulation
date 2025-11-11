@@ -20,13 +20,14 @@ using namespace std;
 
 
 
+
 vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
     vector<unique_ptr<FoodSource>> foodSources;
-    for (int i = 0; i < NUM_FOOD_SOURCES; ++i) {
-        double x = Random::uniform(-500.0, 500.0);
-        double y = Random::uniform(-500.0, 500.0);
-        double radius = Random::uniform(5.0, 20.0);
-        double energy = Random::uniform(5.0, 15.0);
+    for (int i = 0; i < NUM_FOOD_SOURCES-1; ++i) {
+        double x = Random::uniform(-300.0, 300.0);
+        double y = Random::uniform(-300.0, 300.0);
+        double energy = Random::uniform(500.0, 1000.0);
+        double radius = sqrt(energy/3.14); // area proportional to energy
         foodSources.push_back(make_unique<FoodSource>(FoodSource{x, y, radius, energy}));
     }
     return foodSources;
@@ -193,8 +194,7 @@ void runGeneticAlgorithm() {
                     ind->foodSources = std::move(foodSources);
                 }
             }
-
-            ind->fitness = *min_element(ind_fitnesses.begin(), ind_fitnesses.end());
+            ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() / 2); // median fitness
         }
 
         sortByFitness(population);
@@ -204,7 +204,7 @@ void runGeneticAlgorithm() {
         
         saveGenomeAndFitness(population.front()->getGenome(), bestFitness, averageFitness, gen);
 
-        cout << "Population sorted by fitness." << endl;
+        cout << "Population sorted by fitness:" << endl;
         for (size_t i = 0; i < population.size(); i++) {
             cout << " " << population[i]->fitness;
             if (i < population.size() - 1) cout << ", ";

@@ -2,9 +2,12 @@
 
 TODO:
 
-- find out why fitness values higher than expected
+- let growth decision net choose tube length (0 - max length), length proportional to growth cost
 - find out how to stop gen_alg process
 
+- make growth angle relative to average direction of existing tubes, not absolute
+
+- let growth decision net change its dims (possible?)
 - growth cost based on tube length (because tubes do not reach their max size if they collide)
 - find good place for createRandomizedFoodSources function
 - how to deal with multiple collisions at one growth step?

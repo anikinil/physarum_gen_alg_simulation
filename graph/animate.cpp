@@ -57,10 +57,17 @@ vector<Frame> loadFrames() {
 void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& foodSources) {
     for (const auto& food : foodSources) {
         float radius = food.radius;
-        sf::CircleShape shape(radius);
-        shape.setFillColor(sf::Color::Cyan);
-        shape.setPosition(WIN_WIDTH/2 + food.x - radius, WIN_HEIGHT/2 + food.y - radius);
-        window.draw(shape);
+        sf::CircleShape area(radius);
+        area.setFillColor(sf::Color(255, 130, 40));
+        area.setPosition(WIN_WIDTH/2 + food.x - radius, WIN_HEIGHT/2 + food.y - radius);
+
+        sf::CircleShape capacity(sqrt(food.energy/3.14));
+        capacity.setFillColor(sf::Color::Transparent);
+        capacity.setOutlineColor(sf::Color::Blue);
+        capacity.setOutlineThickness(0.5);
+        capacity.setPosition(WIN_WIDTH/2 + food.x - capacity.getRadius(), WIN_HEIGHT/2 + food.y - capacity.getRadius());
+        window.draw(area);
+        window.draw(capacity);
     }
 }
 
@@ -68,8 +75,10 @@ void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junct
     for (const auto& junc : junctions) {
 
         int radius = 1 + JUNCTION_RADIUS_FACTOR * sqrt(junc.energy / 3.14); // scale radius with energy
+        sf::Color color = sf::Color(255, 200, 40);
+        if (radius == 1) color = sf::Color(180, 140, 20);
         sf::CircleShape shape(radius);
-        shape.setFillColor(sf::Color::Yellow);
+        shape.setFillColor(color);
         shape.setPosition(WIN_WIDTH/2 + junc.x - radius, WIN_HEIGHT/2 + junc.y - radius);
         window.draw(shape);
     }
@@ -77,35 +86,35 @@ void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junct
 
 void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
     for (const auto& tube : tubes) {
-
-        double thickness = 1 + TUBE_THICKNESS * tube.flowRate;
-
-        sf::Vector2f p1(WIN_WIDTH/2 + tube.x1, WIN_HEIGHT/2 + tube.y1 - thickness / 2);
-        sf::Vector2f p2(WIN_WIDTH/2 + tube.x2, WIN_HEIGHT/2 + tube.y2 - thickness / 2);
+        float thickness = 1.f + TUBE_THICKNESS * static_cast<float>(tube.flowRate);
+        sf::Vector2f p1(WIN_WIDTH/2 + tube.x1, WIN_HEIGHT/2 + tube.y1);
+        sf::Vector2f p2(WIN_WIDTH/2 + tube.x2, WIN_HEIGHT/2 + tube.y2);
         sf::Vector2f dir = p2 - p1;
         float length = std::sqrt(dir.x * dir.x + dir.y * dir.y);
-        float angle = std::atan2(dir.y, dir.x) * 180 / M_PI;
+        float angle = std::atan2(dir.y, dir.x) * 180.f / static_cast<float>(M_PI);
 
         sf::RectangleShape thickLine(sf::Vector2f(length, thickness));
+        // center the rectangle on the tube centerline so thickness is symmetric about the junction centers
+        thickLine.setOrigin(0.f, thickness * 0.5f);
         thickLine.setPosition(p1);
         thickLine.setRotation(angle);
-        thickLine.setFillColor(sf::Color::Yellow);
+        thickLine.setFillColor(sf::Color(255, 200, 40));
         window.draw(thickLine);
     }
 }
 
-
 vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
     vector<unique_ptr<FoodSource>> foodSources;
-    for (int i = 0; i < NUM_FOOD_SOURCES; ++i) {
-        double x = Random::uniform(-500.0, 500.0);
-        double y = Random::uniform(-500.0, 500.0);
-        double radius = Random::uniform(5.0, 20.0);
-        double energy = Random::uniform(5.0, 15.0);
+    for (int i = 0; i < NUM_FOOD_SOURCES-1; ++i) {
+        double x = Random::uniform(-300.0, 300.0);
+        double y = Random::uniform(-300.0, 300.0);
+        double energy = Random::uniform(500.0, 1000.0);
+        double radius = sqrt(energy/3.14); // area proportional to energy
         foodSources.push_back(make_unique<FoodSource>(FoodSource{x, y, radius, energy}));
     }
     return foodSources;
 }
+
 
 World readWorld(int gen) {
 
