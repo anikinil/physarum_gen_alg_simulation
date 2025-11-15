@@ -33,20 +33,6 @@ vector<Frame> loadFrames() {
         }
 
         currentFrame.addObject(line);
-
-        // if (step < 30) {
-        //     cout << "-------"  << endl;
-        //     cout << "Step: " << currentStep << ", Junctions: " << currentFrame.junctions.size() << endl;
-        //     for (size_t i = 0; i < currentFrame.junctions.size(); i++) {
-        //         cout << " Junc " << i << ": ";
-        //         cout << currentFrame.junctions[i].x << ", " << currentFrame.junctions[i].y << ", " << currentFrame.junctions[i].energy << endl;
-        //     }
-        //     double totalEnergy = 0.0;
-        //     for (const auto& j : currentFrame.junctions) {
-        //         totalEnergy += j.energy;
-        //     }
-        //     cout << "Total energy: " << totalEnergy << endl;
-        // }
     }
 
     if (currentStep != -1) frames.push_back(std::move(currentFrame));
@@ -145,8 +131,6 @@ World readWorld(int gen) {
     getline(ss, averageFitnessStr, ';');
     getline(ss, genomeStr, ';');
 
-    // cout << "genomeStr: " << genomeStr << endl;
-
     vector<double> weights;
     int weights_size = 0;
     for (const auto& layer_dim : GROW_NET_DIMS) {
@@ -162,7 +146,6 @@ World readWorld(int gen) {
     weights.reserve(weights_size);
     stringstream rulesStream(genomeStr);
     for (string token; getline(rulesStream, token, ' ');) {
-        // cout << "token: " << token << endl;
         weights.push_back(static_cast<double>(stod(token)));
     }
 
@@ -178,14 +161,12 @@ World readWorld(int gen) {
     weights_b.assign(weights.begin() + grow_net_size, weights.end());
 
     Genome genome;
-    // cout << "weights_a[14]: " << weights_a[14] << endl;
-    // cout << "weights_b[14]: " << weights_b[14] << endl;
-    genome.setGenomeValues(weights_a, weights_b);
+    genome.setGrowNetWights(weights_a);
+    genome.setFlowNetWights(weights_b);
 
     vector<unique_ptr<Junction>> junctions;
     junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
     vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
-    // cout << "readWorld: " << genome.getGrowNetValues()[0][14] << endl;
     return World{genome, std::move(junctions), std::move(foodSources)};
 }
 

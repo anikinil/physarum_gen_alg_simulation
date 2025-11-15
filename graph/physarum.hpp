@@ -3,22 +3,14 @@
 #include <numeric>
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <utility>
 #include <cmath>
 
-
-#include "utils.hpp"
-
-#include "MiniDNN.h"
-
-
 using namespace std;
-using namespace MiniDNN;
 
-
-typedef Eigen::MatrixXd Matrix;
-typedef Eigen::VectorXd Vector;
+#include "decision.hpp"
 
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
 const double GROWING_COST = 0.5;
@@ -31,130 +23,9 @@ const double FLOW_RATE_CHANGE_STEP = 0.01;
 const double TUBE_LENGTH = 20.0;
 
 
-const vector<pair<int, int>> GROW_NET_DIMS = {
-    {6, 8}, // 6 x 8
-    {8, 8}, // 8 x 8
-    {8, 5}, // 8 x 5
-    {5, 3}  // 5 x 3
-    // + 8 + 8 + 5 + 3
-    // total: 215
-};
-
-const vector<pair<int, int>> FLOW_NET_DIMS = {
-    {3, 5}, // 3 x 5
-    {5, 6}, // 5 x 6
-    {6, 4}, // 6 x 4
-    {4, 2}  // 4 x 2
-    // + 5 + 6 + 4 + 2
-    // total: 94
-};
-// total genome size: 309
-
-
 struct Junction;
 struct Tube;
 struct FoodSource;
-
-
-struct Genome {
-    vector<vector<double>> growNetWeights;
-    vector<vector<double>> flowNetWeights;
-
-    Genome() {
-        // Lambda to generate small random values
-        auto smallRand = [](int n) {
-            return Random::randvec(n, 0.0, 0.0);
-        };
-
-        // Initialize weights with random values
-        for (const auto& layer_dim : GROW_NET_DIMS) {
-            int in = layer_dim.first;
-            int out = layer_dim.second;
-            // weight matrix (in x out)
-            growNetWeights.push_back(smallRand(in * out));
-            // bias vector (1 x out)
-            growNetWeights.push_back(smallRand(out));
-        }
-
-        for (const auto& layer_dim : FLOW_NET_DIMS) {
-            int in = layer_dim.first;
-            int out = layer_dim.second;
-            // weight matrix (in x out)
-            flowNetWeights.push_back(smallRand(in * out));
-            // bias vector (1 x out)
-            flowNetWeights.push_back(smallRand(out));
-        }
-    }
-
-    vector<vector<double>> getGrowNetValues() const {
-        vector<vector<double>> vals;
-        for (size_t i = 0; i < GROW_NET_DIMS.size(); ++i) {
-            vector<double> layer_params;
-            // append weights
-            layer_params.insert(layer_params.end(), growNetWeights[i*2].begin(), growNetWeights[i*2].end());
-            // append biases
-            layer_params.insert(layer_params.end(), growNetWeights[i*2+1].begin(), growNetWeights[i*2+1].end());
-            vals.push_back(layer_params);
-        }
-        return vals;
-    }
-
-    vector<vector<double>> getFlowNetValues() const {
-        vector<vector<double>> vals;
-        for (size_t i = 0; i < FLOW_NET_DIMS.size(); ++i) {
-            vector<double> layer_params;
-            // append weights
-            layer_params.insert(layer_params.end(), flowNetWeights[i*2].begin(), flowNetWeights[i*2].end());
-            // append biases
-            layer_params.insert(layer_params.end(), flowNetWeights[i*2+1].begin(), flowNetWeights[i*2+1].end());
-            vals.push_back(layer_params);
-        }
-        return vals;
-    }
-
-    void setGenomeValues(const vector<double>& growVals,
-                         const vector<double>& flowVals) {
-        growNetWeights.clear();
-        flowNetWeights.clear();
-        
-        size_t growIdx = 0;
-        for (const auto& layer_dim : GROW_NET_DIMS) {
-            int in = layer_dim.first;
-            int out = layer_dim.second;
-            size_t weight_size = in * out;
-            size_t bias_size = out;
-
-            vector<double> weights(growVals.begin() + growIdx,
-                                   growVals.begin() + growIdx + weight_size);
-            growNetWeights.push_back(weights);
-            growIdx += weight_size;
-
-            vector<double> biases(growVals.begin() + growIdx,
-                                  growVals.begin() + growIdx + bias_size);
-            growNetWeights.push_back(biases);
-            growIdx += bias_size;
-        }
-    }
-
-    void mutate(double mutation_rate, double mutation_strength) {
-        for (auto& layer_weights : growNetWeights) {
-            for (auto& weight : layer_weights) {
-                if (Random::uniform() < mutation_rate) {
-                    double change = Random::uniform(-mutation_strength, mutation_strength);
-                    weight += change;
-                }
-            }
-        }
-        for (auto& layer_weights : flowNetWeights) {
-            for (auto& weight : layer_weights) {
-                if (Random::uniform() < mutation_rate) {
-                    double change = Random::uniform(-mutation_strength, mutation_strength);
-                    weight += change;
-                }
-            }
-        }
-    }
-};
 
 
 struct Tube {
@@ -251,101 +122,6 @@ struct FoodSource {
     // enum class FoodType { A, B, C } type;
 };
 
-
-struct GrowthDecisionNet {
-    Genome genome;
-
-    int numberOfInTubes = 0;
-    int numberOfOutTubes = 0;
-    double averageInTubeAngle = 0.0;
-    double averageOutTubeAngle = 0.0;
-    double energy = 0.0;
-    bool touchingFoodSource = false;
-    
-    double growthProbability = 0.0;
-    double growthAngle = 0.0;
-    double angleVariance = 0.0;
-
-    Network net;
-    Matrix input;
-
-    GrowthDecisionNet(const Genome& genome) {
-
-        for (const auto& dim : GROW_NET_DIMS) {
-            Layer* layer = new FullyConnected<Sigmoid>(dim.first, dim.second);
-            net.add_layer(layer);
-        }
-
-        net.init();
-        net.set_parameters(genome.getGrowNetValues());
-    }
-    
-    void decideAction(int numberOfInTubes,
-                    int numberOfOutTubes,
-                    double averageInTubeAngle,
-                    double averageOutTubeAngle,
-                    double energy,
-                    bool touchingFoodSource) {
-
-        input = Matrix(6, 1);
-        input << static_cast<double>(numberOfInTubes),
-        static_cast<double>(numberOfOutTubes),
-        static_cast<double>(averageInTubeAngle),
-        static_cast<double>(averageOutTubeAngle),
-        static_cast<double>(energy),
-        static_cast<double>(touchingFoodSource);
-
-        
-        Vector pred = net.predict(input);
-        growthProbability = static_cast<double>(pred(0));
-        growthAngle = static_cast<double>(pred(1) * 2.0 * M_PI);
-        angleVariance = static_cast<double>(pred(2)) * M_PI;
-
-        cout << "Growth Decision Net Output: Prob=" << pred(0)
-             << ", Angle=" << pred(1)
-             << ", Variance=" << pred(2) << endl;
-    }
-};
-
-struct FlowDecisionNet {
-
-    double currentFlowRate = 0.0;
-    double inJunctionAverageFlowRate = 0.0;
-    double outJunctionAverageFlowRate = 0.0;
-
-    double increaseFlowProb = 0.0;
-    double decreaseFlowProb = 0.0;
-
-    Network net;
-    Matrix input;
-
-    FlowDecisionNet(const Genome& genome) {
-
-        for (const auto& dim : FLOW_NET_DIMS) {
-            Layer* layer = new FullyConnected<Sigmoid>(dim.first, dim.second);
-            net.add_layer(layer);
-        }
-
-        net.init();
-        net.set_parameters(genome.getFlowNetValues());   
-    }
-
-    void decideAction(double currentFlowRate,
-                    double inJunctionAverageFlowRate,
-                    double outJunctionAverageFlowRate) {
-
-        input = Matrix(3, 1);
-        input << currentFlowRate,
-                inJunctionAverageFlowRate,
-                outJunctionAverageFlowRate;
-        Vector pred = net.predict(input);
-        increaseFlowProb = static_cast<double>(pred(0));
-        decreaseFlowProb = static_cast<double>(pred(1));
-
-        cout << "Flow Decision Net Output: IncreaseProb=" << increaseFlowProb
-             << ", DecreaseProb=" << decreaseFlowProb << endl;
-    }
-};
 
 
 struct World {
@@ -714,13 +490,16 @@ struct World {
             double averageAngleOut = junc->averageAngleOutTubes();
             double energy = junc->energy;
             bool touchingFoodSource = junc->isTouchingFoodSource();
-
+            
+            // cout << "Updating junction: energy=" << energy << ", touchingFoodSource=" << touchingFoodSource << endl;
+            
             growthDecisionNet.decideAction(numInTubes,
                                             numOutTubes,
                                             averageAngleIn,
                                             averageAngleOut,
                                             energy,
                                             touchingFoodSource);
+                                            
 
             if (junc->getTotalTubes() < MAX_TUBES_PER_JUNCTION && Random::uniform() < growthDecisionNet.growthProbability && energy > MIN_GROWTH_ENERGY) {
                 growTubeFrom(

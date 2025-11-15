@@ -2,6 +2,8 @@
 
 TODO:
 
+- RESTRUCTURE WHOLE CODE
+
 - let growth decision net choose tube length (0 - max length), length proportional to growth cost
 - find out how to stop gen_alg process
 

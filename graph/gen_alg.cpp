@@ -56,15 +56,8 @@ void saveGenomeAndFitness(const Genome& genome, double fitness, double averageFi
     file << generation << ";" << fitness << ";" << averageFitness << ";";
 
     // Serialize genome
-    for (const auto& layer_weights : genome.growNetWeights) {
-        for (const auto& weight : layer_weights) {
-            file << weight << " ";
-        }
-    }
-    for (const auto& layer_weights : genome.flowNetWeights) {
-        for (const auto& weight : layer_weights) {
-            file << weight << " ";
-        }
+    for (const auto& weight : genome.serialize()) {
+        file << weight << " ";
     }
     file << "\n";
 }
@@ -77,33 +70,23 @@ void sortByFitness(vector<unique_ptr<World>>& population) {
 }
 
 void crossOverGenomes(const Genome& parent1, const Genome& parent2, Genome& child) {
+    vector<double> p1_weights = parent1.serialize();
+    vector<double> p2_weights = parent2.serialize();
 
-    float crossoverPointGrowth = Random::uniform(0.0f, 1.0f);
-    float crossoverPointFlow = Random::uniform(0.0f, 1.0f);
+    vector<double> child_weights;
+    child_weights.reserve(p1_weights.size());
 
-    // Crossover growNetWeights by calculating the average of parents' weights for each weight
-    child.growNetWeights.clear();
-    for (size_t i = 0; i < parent1.growNetWeights.size(); ++i) {
-        const auto& layer1 = parent1.growNetWeights[i];
-        const auto& layer2 = parent2.growNetWeights[i];
-        vector<double> childLayer;
-        for (size_t j = 0; j < layer1.size(); ++j) {
-            childLayer.push_back((crossoverPointGrowth * layer1[j] + (1 - crossoverPointGrowth) * layer2[j]));
+    // Single point crossover
+    int crossover_point = Random::randint(0, p1_weights.size() - 1);
+    for (int i = 0; i < p1_weights.size(); i++) {
+        if (i < crossover_point) {
+            child_weights.push_back(p1_weights[i]);
+        } else {
+            child_weights.push_back(p2_weights[i]);
         }
-        child.growNetWeights.push_back(childLayer);
     }
 
-    // Crossover flowNetWeights by calculating the average of parents' weights for each weight
-    child.flowNetWeights.clear();
-    for (size_t i = 0; i < parent1.flowNetWeights.size(); ++i) {
-        const auto& layer1 = parent1.flowNetWeights[i];
-        const auto& layer2 = parent2.flowNetWeights[i];
-        vector<double> childLayer;
-        for (size_t j = 0; j < layer1.size(); ++j) {
-            childLayer.push_back((crossoverPointFlow * layer1[j] + (1 - crossoverPointFlow) * layer2[j]));
-        }
-        child.flowNetWeights.push_back(childLayer);
-    }
+    child.setGrowNetWights(child_weights);
 }
 
 vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& currentPopulation) {
@@ -128,9 +111,9 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         int parent2Idx = Random::randint(0, numElite - 1);
         Genome childGenome;
         Genome test = currentPopulation[parent1Idx]->getGenome();
-        crossOverGenomes(currentPopulation[parent1Idx]->getGenome(),
-                         currentPopulation[parent2Idx]->getGenome(),
-                         childGenome);
+        // crossOverGenomes(currentPopulation[parent1Idx]->getGenome(),
+                        //  currentPopulation[parent2Idx]->getGenome(),
+                        //  childGenome);
 
         // Mutate child genome
         childGenome.mutate(DEFAULT_MUTATION_RATE, MUTATION_STRENGTH);
