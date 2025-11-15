@@ -491,8 +491,6 @@ struct World {
             double energy = junc->energy;
             bool touchingFoodSource = junc->isTouchingFoodSource();
             
-            // cout << "Updating junction: energy=" << energy << ", touchingFoodSource=" << touchingFoodSource << endl;
-            
             growthDecisionNet.decideAction(numInTubes,
                                             numOutTubes,
                                             averageAngleIn,
@@ -504,6 +502,7 @@ struct World {
             if (junc->getTotalTubes() < MAX_TUBES_PER_JUNCTION && Random::uniform() < growthDecisionNet.growthProbability && energy > MIN_GROWTH_ENERGY) {
                 growTubeFrom(
                     *junc,
+                    // TODO only take avergae of in-tubes? -> less chaotic growth
                     (averageAngleIn + averageAngleOut) / 2.0 + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
             }
 

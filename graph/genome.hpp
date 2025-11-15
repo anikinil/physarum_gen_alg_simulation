@@ -20,7 +20,7 @@ const vector<pair<int, int>> FLOW_NET_DIMS = {
 };
 // total genome size: 309
 
-double INITIAL_WEIGHT_RANGE = 0.1;
+double INITIAL_WEIGHT_RANGE = 5;
 
 using namespace std;
 

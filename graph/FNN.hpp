@@ -19,12 +19,14 @@ struct FNNLayer {
                 double e = exp(x);
                 return e / (1.0 + e);
             };
+        } else if (act == "relu") {
+            activation = [](double x) { return x > 0 ? x : 0.0; };
         } else { // tanh
             activation = [](double x) { return tanh(x); };
         }
     }
 
-    FNNLayer(vector<vector<double>> weights, vector<double> biases, string act = "sigmoid")
+    FNNLayer(vector<vector<double>> weights, vector<double> biases, string act)
         : weights(weights),
           biases(biases) {
         setActivation(act);
@@ -44,7 +46,7 @@ struct FNN {
         int num_layers = weights.size()/2;
 
         for (int i = 0; i < num_layers; ++i) {
-            string activation = "tanh";
+            string activation = "relu";
             if (i == num_layers - 1) activation = "sigmoid";
             auto layer = FNNLayer(weights[i*2], weights[i*2+1][0], activation);
             addLayer(layer);

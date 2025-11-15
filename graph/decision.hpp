@@ -24,8 +24,7 @@ struct GrowthDecisionNet {
     GrowthDecisionNet(const Genome& genome) {
 
         auto net = FNN();
-        auto weights = genome.getGrowNetWeights();
-        net.initialize(weights);
+        net.initialize(genome.getGrowNetWeights());
         this->net = net;
     }
     
@@ -45,7 +44,9 @@ struct GrowthDecisionNet {
             static_cast<double>(touchingFoodSource)
         };
 
+        
         vector<double> pred = net.predict(input);
+        // cout << "GrowthDecisionNet prediction: " << pred[0] << ", " << pred[1] << ", " << pred[2] << endl;
         growthProbability = pred[0];
         growthAngle = pred[1] * 2.0 * M_PI;
         angleVariance = pred[2] * M_PI;
@@ -68,8 +69,7 @@ struct FlowDecisionNet {
     FlowDecisionNet(const Genome& genome) {
 
         auto net = FNN();
-        auto weights = genome.getFlowNetWeights();
-        net.initialize(weights);
+        net.initialize(genome.getFlowNetWeights());
         this->net = net;
     }
 
@@ -83,6 +83,8 @@ struct FlowDecisionNet {
             outJunctionAverageFlowRate };
 
         vector<double> pred = net.predict(input);
+
+        // cout << "FlowDecisionNet prediction: " << pred[0] << ", " << pred[1] << endl;
 
         increaseFlowProb = pred[0];
         decreaseFlowProb = pred[1];
