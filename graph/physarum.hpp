@@ -502,8 +502,7 @@ struct World {
             if (junc->getTotalTubes() < MAX_TUBES_PER_JUNCTION && Random::uniform() < growthDecisionNet.growthProbability && energy > MIN_GROWTH_ENERGY) {
                 growTubeFrom(
                     *junc,
-                    // TODO only take avergae of in-tubes? -> less chaotic growth
-                    (averageAngleIn + averageAngleOut) / 2.0 + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
+                    averageAngleIn + growthDecisionNet.growthAngle + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
             }
 
             // passive energy loss
