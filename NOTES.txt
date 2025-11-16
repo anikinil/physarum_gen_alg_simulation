@@ -2,7 +2,10 @@
 
 TODO:
 
-- choose a smart way to initialize net weights
+
+- use hash table to save junctions and tubes for faster collision detection
+
+- increase step number buy N when fitness stagnates over M generations
 
 - let growth decision net choose tube length (0 - max length), length proportional to growth cost
 

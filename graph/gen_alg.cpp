@@ -1,5 +1,4 @@
 #include "gen_alg.hpp"
-#include "physarum.hpp"
 #include "utils.hpp"
 
 #include <vector>
@@ -17,22 +16,6 @@
 #include <algorithm>
 
 using namespace std;
-
-
-
-
-vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
-    vector<unique_ptr<FoodSource>> foodSources;
-    for (int i = 0; i < NUM_FOOD_SOURCES-1; ++i) {
-        double x = Random::uniform(-300.0, 300.0);
-        double y = Random::uniform(-300.0, 300.0);
-        double energy = Random::uniform(500.0, 1000.0);
-        double radius = sqrt(energy/3.14); // area proportional to energy
-        foodSources.push_back(make_unique<FoodSource>(FoodSource{x, y, radius, energy}));
-    }
-    return foodSources;
-}
-
 
 vector<unique_ptr<World>> generateInitialPopulation() {
     vector<unique_ptr<World>> population;

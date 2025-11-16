@@ -2,7 +2,7 @@
 #include "utils.hpp"
 
 const vector<pair<int, int>> GROW_NET_DIMS = {
-    {6, 8}, // 6 x 8
+    {8, 8}, // 6 x 8
     {8, 8}, // 8 x 8
     {8, 5}, // 8 x 5
     {5, 3}  // 5 x 3
@@ -20,7 +20,7 @@ const vector<pair<int, int>> FLOW_NET_DIMS = {
 };
 // total genome size: 309
 
-double INITIAL_WEIGHT_RANGE = 1;
+double INITIAL_WEIGHT_RANGE = 3;
 
 using namespace std;
 

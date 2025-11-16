@@ -30,6 +30,8 @@ struct GrowthDecisionNet {
     
     void decideAction(int numberOfInTubes,
                     int numberOfOutTubes,
+                    double averageInFlowRate,
+                    double averageOutFlowRate,
                     double averageInTubeAngle,
                     double averageOutTubeAngle,
                     double energy,
@@ -83,9 +85,7 @@ struct FlowDecisionNet {
             outJunctionAverageFlowRate };
 
         vector<double> pred = net.predict(input);
-
         // cout << "FlowDecisionNet prediction: " << pred[0] << ", " << pred[1] << endl;
-
         increaseFlowProb = pred[0];
         decreaseFlowProb = pred[1];
     }

@@ -13,14 +13,17 @@ using namespace std;
 #include "decision.hpp"
 
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
+
 const double GROWING_COST = 0.5;
 const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
-const double PASSIVE_ENERGY_LOSS_FACTOR = 0.999;
+const double PASSIVE_ENERGY_LOSS = 0.05;
 
 const int MAX_TUBES_PER_JUNCTION = 3;
 const double DEFAULT_FLOW_RATE = 0.01;
 const double FLOW_RATE_CHANGE_STEP = 0.01;
 const double TUBE_LENGTH = 20.0;
+
+const double MAX_JUNCTION_ENERGY = 20.0;
 
 
 struct Junction;
@@ -59,6 +62,20 @@ struct Junction {
 
     int numOutTubes() {
         return outTubes.size();
+    }
+
+    double averageInFlowRate() {
+        if (inTubes.empty()) return 0.0;
+        double sum = accumulate(inTubes.begin(), inTubes.end(), 0.0,
+            [](double acc, const TubeInfo& ti) { return acc + ti.tube->flowRate; });
+        return sum / inTubes.size();
+    }
+
+    double averageOutFlowRate() {
+        if (outTubes.empty()) return 0.0;
+        double sum = accumulate(outTubes.begin(), outTubes.end(), 0.0,
+            [](double acc, const TubeInfo& ti) { return acc + ti.tube->flowRate; });
+        return sum / outTubes.size();
     }
 
     double averageAngleInTubes() {
@@ -424,7 +441,7 @@ struct World {
 
     void updateJunctions() {
 
-        // removeDeadJunctionsAndTubes();
+        removeDeadJunctionsAndTubes();
 
         // Remove any dangling TubeInfo references from junctions (tubes that are no longer present)
         auto tubeExists = [&](Tube* t) {
@@ -480,7 +497,7 @@ struct World {
                 tube->toJunction->energy += energyAmount;
             }
 
-            // if (junc->energy < 1e-12) continue; // depleted junctions can't grow
+            if (junc->energy < 1e-12) continue; // depleted junctions can't grow
 
             // handle growth decision
 
@@ -488,26 +505,29 @@ struct World {
             int numOutTubes = junc->numOutTubes();
             double averageAngleIn = junc->averageAngleInTubes();
             double averageAngleOut = junc->averageAngleOutTubes();
-            double energy = junc->energy;
+            double energy = junc->energy  / MAX_JUNCTION_ENERGY; // normalize energy input
+            // cout << "Junction energy: " << energy << endl;
             bool touchingFoodSource = junc->isTouchingFoodSource();
             
             growthDecisionNet.decideAction(numInTubes,
                                             numOutTubes,
+                                            junc->averageInFlowRate(),
+                                            junc->averageOutFlowRate(),
                                             averageAngleIn,
                                             averageAngleOut,
                                             energy,
                                             touchingFoodSource);
-                                            
-
-            if (junc->getTotalTubes() < MAX_TUBES_PER_JUNCTION && Random::uniform() < growthDecisionNet.growthProbability && energy > MIN_GROWTH_ENERGY) {
+               
+            if (junc->getTotalTubes() < MAX_TUBES_PER_JUNCTION && Random::uniform() < growthDecisionNet.growthProbability && junc->energy > MIN_GROWTH_ENERGY) {
                 growTubeFrom(
                     *junc,
                     averageAngleIn + growthDecisionNet.growthAngle + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
             }
 
             // passive energy loss
-            junc->energy *= PASSIVE_ENERGY_LOSS_FACTOR;
-        }
+            junc->energy -= PASSIVE_ENERGY_LOSS;
+            if (junc->energy < 1e-12) junc->energy = 0.0;
+        }        
     }
     
     void updateTubes() {

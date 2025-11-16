@@ -12,13 +12,6 @@ public:
         uniform_real_distribution<double> dist(min, max);
         return dist(gen);
     }
-    
-    // static double pareto(double scale = 1.0, double shape = 1.0) {
-    //     static thread_local mt19937 gen(random_device{}());
-    //     uniform_real_distribution<double> dist(0.0, 1.0);
-    //     double u = dist(gen);
-    //     return scale / pow(u, 1.0 / shape);
-    // }
 
     static int randint(int min, int max) {
         static thread_local mt19937 gen(random_device{}());
