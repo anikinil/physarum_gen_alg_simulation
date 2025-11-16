@@ -33,4 +33,10 @@ public:
         }
         return vec;
     }
+
+    static double gaussian(double mean = 0.0, double stddev = 1.0) {
+        static thread_local mt19937 gen(random_device{}());
+        normal_distribution<double> dist(mean, stddev);
+        return dist(gen);
+    }
 };

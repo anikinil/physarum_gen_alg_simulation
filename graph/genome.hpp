@@ -28,31 +28,28 @@ struct Genome {
     vector<vector<vector<double>>> growNetWeights;
     vector<vector<vector<double>>> flowNetWeights;
 
+    // TODO change structure to:
+    // std::vector<std::vector<std::vector<double>>> growNetWeights, flowNetWeights;
+    // std::vector<std::vector<double>> growNetBiases, flowNetBiases;
+
     Genome() {
-        // Lambda to generate small random values
-        auto smallRand = [](int n) {
-            return Random::randvec(n, 0.0, 0.0);
+        auto addLayer = [&](const std::pair<int,int>& d, 
+                            std::vector<std::vector<std::vector<double>>>& net) {
+            int in = d.first, out = d.second;
+            double s = std::sqrt(2.0 / in);
+            std::vector<std::vector<double>> W(in, std::vector<double>(out));
+            for (int i = 0; i < in; ++i)
+                for (int j = 0; j < out; ++j)
+                    W[i][j] = Random::gaussian(0.0, s);
+            std::vector<std::vector<double>> bias_row(1, std::vector<double>(out, 0.0));
+            net.push_back(std::move(W));
+            net.push_back(std::move(bias_row));
         };
 
-        // Initialize weights with random values
-        for (const auto& layer_dim : GROW_NET_DIMS) {
-            int in = layer_dim.first;
-            int out = layer_dim.second;
-            vector<vector<double>> weight_matrix(in, Random::randvec(out, -INITIAL_WEIGHT_RANGE, INITIAL_WEIGHT_RANGE));
-            vector<double> bias_vector = Random::randvec(out, -INITIAL_WEIGHT_RANGE, INITIAL_WEIGHT_RANGE);
-            growNetWeights.push_back(weight_matrix);
-            growNetWeights.push_back(vector<vector<double>>(1, bias_vector));
-        }
-
-        for (const auto& layer_dim : FLOW_NET_DIMS) {
-            int in = layer_dim.first;
-            int out = layer_dim.second;
-            vector<vector<double>> weight_matrix(in, Random::randvec(out, -INITIAL_WEIGHT_RANGE, INITIAL_WEIGHT_RANGE));
-            vector<double> bias_vector = Random::randvec(out, -INITIAL_WEIGHT_RANGE, INITIAL_WEIGHT_RANGE);
-            flowNetWeights.push_back(weight_matrix);
-            flowNetWeights.push_back(vector<vector<double>>(1, bias_vector));
-        }
+        for (const auto& d : GROW_NET_DIMS) addLayer(d, growNetWeights);
+        for (const auto& d : FLOW_NET_DIMS) addLayer(d, flowNetWeights);
     }
+
 
     vector<vector<vector<double>>> getGrowNetWeights() const {
         return growNetWeights;
