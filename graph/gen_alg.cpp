@@ -160,7 +160,8 @@ void runGeneticAlgorithm() {
                     ind->foodSources = std::move(foodSources);
                 }
             }
-            ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() / 2); // median fitness
+            // ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() / 2); // median fitness
+            ind->fitness = *min_element(ind_fitnesses.begin(), ind_fitnesses.end()); // worst fitness
         }
 
         sortByFitness(population);

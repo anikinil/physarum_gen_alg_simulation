@@ -12,7 +12,7 @@ const int WIN_HEIGHT = 1500;
 const double JUNCTION_RADIUS_FACTOR = 3.0;
 const int TUBE_THICKNESS = 10;
 
-const float FPS = 20.0f;
+const float FPS = 60.0f;
 const float DEFAULT_ZOOM = 0.2f;
 
 

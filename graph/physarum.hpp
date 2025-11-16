@@ -14,16 +14,19 @@ using namespace std;
 
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
 
-const double GROWING_COST = 0.5;
+const double GROWING_COST = 0.01;
 const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
-const double PASSIVE_ENERGY_LOSS = 0.05;
+const double PASSIVE_ENERGY_LOSS = 0.01;
 
 const int MAX_TUBES_PER_JUNCTION = 3;
-const double DEFAULT_FLOW_RATE = 0.01;
-const double FLOW_RATE_CHANGE_STEP = 0.01;
+const double DEFAULT_FLOW_RATE = 0.1;
+const double FLOW_RATE_CHANGE_STEP = 0.1;
 const double TUBE_LENGTH = 20.0;
 
-const double MAX_JUNCTION_ENERGY = 20.0;
+const double MAX_JUNCTION_ENERGY = 10.0;
+const double MAX_TUBE_FLOW_RATE = 2.0;
+
+const double FOOD_ENERGY_ABSORB_RATE = 50.0;
 
 
 struct Junction;
@@ -484,6 +487,9 @@ struct World {
                 // }
                 tube->fromJunction->energy -= energyAmount;
                 junc->energy += energyAmount;
+                if (junc->energy > MAX_JUNCTION_ENERGY) {
+                    junc->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
+                }
             }
             // outgoing tubes
             for (auto& outTubeInfo : junc->outTubes) {
@@ -495,6 +501,9 @@ struct World {
                 // }
                 junc->energy -= energyAmount;
                 tube->toJunction->energy += energyAmount;
+                if (tube->toJunction->energy > MAX_JUNCTION_ENERGY) {
+                    tube->toJunction->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
+                }
             }
 
             if (junc->energy < 1e-12) continue; // depleted junctions can't grow
@@ -525,7 +534,7 @@ struct World {
             }
 
             // passive energy loss
-            junc->energy -= PASSIVE_ENERGY_LOSS;
+            junc->energy -= PASSIVE_ENERGY_LOSS/junc->energy;
             if (junc->energy < 1e-12) junc->energy = 0.0;
         }        
     }
@@ -546,6 +555,9 @@ struct World {
             // adjust flow rate based on decision net
             if (Random::uniform() < flowDecisionNet.increaseFlowProb) {
                 tube->flowRate += FLOW_RATE_CHANGE_STEP;
+                if (tube->flowRate > MAX_TUBE_FLOW_RATE) {
+                    tube->flowRate = MAX_TUBE_FLOW_RATE; // cap flow rate
+                }
             }
             if (Random::uniform() < flowDecisionNet.decreaseFlowProb && tube->flowRate > 0) {
                 tube->flowRate -= FLOW_RATE_CHANGE_STEP;
@@ -570,8 +582,11 @@ struct World {
         for (auto& junc : junctions) {
 
             if (junc->isTouchingFoodSource()) {
-                junc->energy += 1; // absorb food energy
-                junc->foodSource->energy -= 1;
+                junc->energy += FOOD_ENERGY_ABSORB_RATE; // absorb food energy
+                if (junc->energy > MAX_JUNCTION_ENERGY) {
+                    junc->energy = MAX_JUNCTION_ENERGY; // cap junction energy
+                }
+                junc->foodSource->energy -= FOOD_ENERGY_ABSORB_RATE;
                 if (junc->foodSource->energy < 0) {
                     junc->foodSource = nullptr; // food source depleted
                 }
