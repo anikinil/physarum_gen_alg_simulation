@@ -10,16 +10,18 @@ struct GrowthDecisionNet {
     Genome genome;
     FNN net;
 
-    int numberOfInTubes = 0;
-    int numberOfOutTubes = 0;
-    double averageInTubeAngle = 0.0;
-    double averageOutTubeAngle = 0.0;
-    double energy = 0.0;
-    bool touchingFoodSource = false;
+    // int numberOfInTubes = 0;
+    // int numberOfOutTubes = 0;
+    // double averageInTubeAngle = 0.0;
+    // double averageOutTubeAngle = 0.0;
+    // double energy = 0.0;
+    // bool touchingFoodSource = false;
+    // vector<int> signalHistory;
     
     double growthProbability = 0.0;
     double growthAngle = 0.0;
     double angleVariance = 0.0;
+    int signal = 0;
 
     GrowthDecisionNet(const Genome& genome) {
 
@@ -35,7 +37,8 @@ struct GrowthDecisionNet {
                     double averageInTubeAngle,
                     double averageOutTubeAngle,
                     double energy,
-                    bool touchingFoodSource) {
+                    bool touchingFoodSource,
+                    const vector<int>& signalHistory) {
 
         vector<double> input = {
             static_cast<double>(numberOfInTubes),
@@ -46,13 +49,18 @@ struct GrowthDecisionNet {
             static_cast<double>(touchingFoodSource)
         };
 
+        int num_signal_types = SIGNAL_TYPES.size();
+        for (int c : SIGNAL_TYPES) {
+            double signal_value = static_cast<double>(c) / num_signal_types;
+            input.push_back(signal_value);
+        }
         
         vector<double> pred = net.predict(input);
         // cout << "GrowthDecisionNet prediction: " << pred[0] << ", " << pred[1] << ", " << pred[2] << endl;
         growthProbability = pred[0];
         growthAngle = pred[1] * 2.0 * M_PI;
         angleVariance = pred[2] * M_PI;
-
+        signal = static_cast<int>(pred[3] * num_signal_types);
     }
 };
 
@@ -61,9 +69,9 @@ struct FlowDecisionNet {
     Genome genome;
     FNN net;
 
-    double currentFlowRate = 0.0;
-    double inJunctionAverageFlowRate = 0.0;
-    double outJunctionAverageFlowRate = 0.0;
+    // double currentFlowRate = 0.0;
+    // double inJunctionAverageFlowRate = 0.0;
+    // double outJunctionAverageFlowRate = 0.0;
 
     double increaseFlowProb = 0.0;
     double decreaseFlowProb = 0.0;
@@ -77,12 +85,15 @@ struct FlowDecisionNet {
 
     void decideAction(double currentFlowRate,
                     double inJunctionAverageFlowRate,
-                    double outJunctionAverageFlowRate) {
+                    double outJunctionAverageFlowRate,
+                    int signal) {
 
         vector<double> input = {
             currentFlowRate,
             inJunctionAverageFlowRate,
-            outJunctionAverageFlowRate };
+            outJunctionAverageFlowRate,
+            static_cast<double>(signal) / SIGNAL_TYPES.size()
+        };
 
         vector<double> pred = net.predict(input);
         // cout << "FlowDecisionNet prediction: " << pred[0] << ", " << pred[1] << endl;

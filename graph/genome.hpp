@@ -1,17 +1,20 @@
 #include <vector>
 #include "utils.hpp"
 
+const int MAX_SIGNAL_HISTORY_LENGTH = 8;
+const vector<int> SIGNAL_TYPES = {0, 1, 2, 3};
+
+
 const vector<pair<int, int>> GROW_NET_DIMS = {
-    {8, 8}, // 6 x 8
-    {8, 8}, // 8 x 8
-    {8, 5}, // 8 x 5
-    {5, 3}  // 5 x 3
-    // + 8 + 8 + 5 + 3
-    // total: 215
+    {MAX_SIGNAL_HISTORY_LENGTH + 8, 16},
+    {16, 12},
+    {12, 8},
+    {8, 8},
+    {8, 3}
 };
 
 const vector<pair<int, int>> FLOW_NET_DIMS = {
-    {3, 5}, // 3 x 5
+    {4, 5}, // 3 x 5
     {5, 6}, // 5 x 6
     {6, 4}, // 6 x 4
     {4, 2}  // 4 x 2

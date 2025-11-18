@@ -12,14 +12,14 @@ const int NUM_TRIES = 9;
 
 const int NUM_STEPS = 200;
 
-const float ELITE_PROPORTION = 0.15f;
+const float ELITE_PROPORTION = 0.2f;
 
-const double DEFAULT_MUTATION_RATE = 0.3;
-const double MUTATION_STRENGTH = 1;
+const double DEFAULT_MUTATION_RATE = 0.2;
+const double MUTATION_STRENGTH = 0.5;
 
 const double INITIAL_ENERGY = MAX_JUNCTION_ENERGY;
 
-const int NUM_FOOD_SOURCES = 80;
+const int NUM_FOOD_SOURCES = 60;
 
 
 vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {

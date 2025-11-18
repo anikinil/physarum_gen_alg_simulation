@@ -1,4 +1,5 @@
 import csv
+import os
 
 import matplotlib.pyplot as plt
 def plot_csv(filename):
@@ -24,7 +25,13 @@ def plot_csv(filename):
     plt.legend()
     plt.grid(True)
     plt.ylim(bottom=0)
+    
+    png_path = os.path.splitext(filename)[0] + '.png'
+    plt.savefig(png_path, dpi=300, bbox_inches='tight')
+    print(f"Saved plot to {png_path}")
+    
     plt.show()
 
 if __name__ == "__main__":
     plot_csv('data/genome_fitness.csv')
+    

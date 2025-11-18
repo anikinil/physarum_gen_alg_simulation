@@ -16,12 +16,12 @@ const double DEFAULT_JUNCTION_ENERGY = 1.0;
 
 const double GROWING_COST = 0.01;
 const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
-const double PASSIVE_ENERGY_LOSS = 0.01;
+const double PASSIVE_ENERGY_LOSS = 0.001;
 
 const int MAX_TUBES_PER_JUNCTION = 3;
 const double DEFAULT_FLOW_RATE = 0.1;
 const double FLOW_RATE_CHANGE_STEP = 0.1;
-const double TUBE_LENGTH = 20.0;
+const double TUBE_LENGTH = 10.0;
 
 const double MAX_JUNCTION_ENERGY = 10.0;
 const double MAX_TUBE_FLOW_RATE = 2.0;
@@ -52,6 +52,9 @@ struct Junction {
     const double x;
     const double y;
     double energy;
+
+    int signal = 0;
+    vector<int> signalHistory;
 
     FoodSource* foodSource = nullptr;
 
@@ -130,6 +133,13 @@ struct Junction {
 
     int getTotalTubes() {
         return inTubes.size() + outTubes.size();
+    }
+
+    void saveSignal(int signal) {
+        signalHistory.push_back(signal);
+        if (signalHistory.size() > MAX_SIGNAL_HISTORY_LENGTH) {
+            signalHistory.erase(signalHistory.begin());
+        }
     }
 };  
 
@@ -470,7 +480,6 @@ struct World {
 
         for (size_t i = 0; i < existingCount; ++i) {
 
-            // be defensive: the junction pointer might have been removed by previous operations
             if (i >= junctions.size()) break;
             Junction* junc = junctions[i].get();
             if (!junc) continue;
@@ -487,6 +496,8 @@ struct World {
                 // }
                 tube->fromJunction->energy -= energyAmount;
                 junc->energy += energyAmount;
+                junc->saveSignal(tube->fromJunction->signal);
+
                 if (junc->energy > MAX_JUNCTION_ENERGY) {
                     junc->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
                 }
@@ -501,6 +512,8 @@ struct World {
                 // }
                 junc->energy -= energyAmount;
                 tube->toJunction->energy += energyAmount;
+                tube->toJunction->saveSignal(junc->signal);
+
                 if (tube->toJunction->energy > MAX_JUNCTION_ENERGY) {
                     tube->toJunction->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
                 }
@@ -517,6 +530,7 @@ struct World {
             double energy = junc->energy  / MAX_JUNCTION_ENERGY; // normalize energy input
             // cout << "Junction energy: " << energy << endl;
             bool touchingFoodSource = junc->isTouchingFoodSource();
+            vector<int> signalHistory = junc->signalHistory;
             
             growthDecisionNet.decideAction(numInTubes,
                                             numOutTubes,
@@ -525,13 +539,16 @@ struct World {
                                             averageAngleIn,
                                             averageAngleOut,
                                             energy,
-                                            touchingFoodSource);
+                                            touchingFoodSource,
+                                            signalHistory);
                
             if (junc->getTotalTubes() < MAX_TUBES_PER_JUNCTION && Random::uniform() < growthDecisionNet.growthProbability && junc->energy > MIN_GROWTH_ENERGY) {
                 growTubeFrom(
                     *junc,
                     averageAngleIn + growthDecisionNet.growthAngle + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
             }
+
+            junc->signal = growthDecisionNet.signal;
 
             // passive energy loss
             junc->energy -= PASSIVE_ENERGY_LOSS/junc->energy;
@@ -547,11 +564,12 @@ struct World {
             double currFlowRate = tube->flowRate;
             double inJunctionAverageFlowRate = static_cast<double>(tube->fromJunction->getSummedFlowRate());
             double outJunctionAverageFlowRate = static_cast<double>(tube->toJunction->getSummedFlowRate());
+            double signal = static_cast<double>(tube->fromJunction->signal) / SIGNAL_TYPES.size();
 
             flowDecisionNet.decideAction(currFlowRate,
                                         inJunctionAverageFlowRate,
-                                        outJunctionAverageFlowRate);
-
+                                        outJunctionAverageFlowRate,
+                                        signal);
             // adjust flow rate based on decision net
             if (Random::uniform() < flowDecisionNet.increaseFlowProb) {
                 tube->flowRate += FLOW_RATE_CHANGE_STEP;
