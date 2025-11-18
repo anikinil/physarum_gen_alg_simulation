@@ -8,14 +8,6 @@ struct GrowthDecisionNet {
 
     Genome genome;
     FNN net;
-
-    // int numberOfInTubes = 0;
-    // int numberOfOutTubes = 0;
-    // double averageInTubeAngle = 0.0;
-    // double averageOutTubeAngle = 0.0;
-    // double energy = 0.0;
-    // bool touchingFoodSource = false;
-    // vector<int> signalHistory;
     
     double growthProbability = 0.0;
     double growthAngle = 0.0;
@@ -37,7 +29,7 @@ struct GrowthDecisionNet {
                     double averageOutTubeAngle,
                     double energy,
                     bool touchingFoodSource,
-                    const vector<int>& signalHistory) {
+                    const deque<int>& signalHistory) {
 
         vector<double> input = {
             static_cast<double>(numberOfInTubes),
@@ -55,7 +47,7 @@ struct GrowthDecisionNet {
         }
         
         vector<double> pred = net.predict(input);
-        // cout << "GrowthDecisionNet prediction: " << pred[0] << ", " << pred[1] << ", " << pred[2] << endl;
+        // cout << "GrowthDecisionNet prediction: " << pred[0] << ", " << pred[1] << ", " << pred[2] << pred[3] << endl;
         growthProbability = pred[0];
         growthAngle = pred[1] * 2.0 * M_PI;
         angleVariance = pred[2] * M_PI;
@@ -67,10 +59,6 @@ struct FlowDecisionNet {
 
     Genome genome;
     FNN net;
-
-    // double currentFlowRate = 0.0;
-    // double inJunctionAverageFlowRate = 0.0;
-    // double outJunctionAverageFlowRate = 0.0;
 
     double increaseFlowProb = 0.0;
     double decreaseFlowProb = 0.0;

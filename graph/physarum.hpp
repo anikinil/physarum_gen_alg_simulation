@@ -1,4 +1,5 @@
 #include <vector>
+#include <deque>
 #include <memory>
 #include <numeric>
 #include <algorithm>
@@ -54,7 +55,7 @@ struct Junction {
     double energy;
 
     int signal = 0;
-    vector<int> signalHistory;
+    deque<int> signalHistory;
 
     FoodSource* foodSource = nullptr;
 
@@ -138,7 +139,7 @@ struct Junction {
     void saveSignal(int signal) {
         signalHistory.push_back(signal);
         if (signalHistory.size() > MAX_SIGNAL_HISTORY_LENGTH) {
-            signalHistory.erase(signalHistory.begin());
+            signalHistory.pop_front();  // use deque instead of vector
         }
     }
 };
@@ -410,9 +411,8 @@ struct World {
         for (const auto& tube : tubes) {    
             file << step << ','
                  << ",,,,";
-                 for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j) {
+                 for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j)
                      file << ",";
-                 }
                  file << tube->x1 << ',' << tube->y1 << ','
                  << tube->x2 << ',' << tube->y2 << ','
                  << tube->flowRate << ','
@@ -421,9 +421,8 @@ struct World {
         for (const auto& fs : foodSources) {
             file << step << ','
                  << ",,,,";
-                 for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j) {
+                 for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j)
                      file << ",";
-                 }
                  file << ",,,,,"
                  << fs->x << ',' << fs->y << ',' << fs->radius << ','
                  << fs->energy << "\n";
@@ -498,21 +497,22 @@ struct World {
             // handle energy movement
 
             // incoming tubes
-            for (auto& inTubeInfo : junc->inTubes) {
-                Tube* tube = inTubeInfo.tube;
-                if (!tube || !tube->fromJunction) continue; // guard against dangling pointers
-                double energyAmount = tube->fromJunction->energy * tube->flowRate;
-                // if (energyAmount > tube->fromJunction->energy) {
-                //     energyAmount = tube->fromJunction->energy; // limit flow by available energy
-                // }
-                tube->fromJunction->energy -= energyAmount;
-                junc->energy += energyAmount;
-                junc->saveSignal(tube->fromJunction->signal);
+            // for (auto& inTubeInfo : junc->inTubes) {
+            //     Tube* tube = inTubeInfo.tube;
+            //     if (!tube || !tube->fromJunction) continue; // guard against dangling pointers
+            //     double energyAmount = tube->fromJunction->energy * tube->flowRate;
+            //     // if (energyAmount > tube->fromJunction->energy) {
+            //     //     energyAmount = tube->fromJunction->energy; // limit flow by available energy
+            //     // }
+            //     tube->fromJunction->energy -= energyAmount;
+            //     junc->energy += energyAmount;
+            //     junc->saveSignal(tube->fromJunction->signal);
+            //     cout << "Junction " << junc->x << ", " << junc->y << " saved signal " << tube->fromJunction->signal << " from incoming tube." << endl;
 
-                if (junc->energy > MAX_JUNCTION_ENERGY) {
-                    junc->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
-                }
-            }
+            //     if (junc->energy > MAX_JUNCTION_ENERGY) {
+            //         junc->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
+            //     }
+            // }
             // outgoing tubes
             for (auto& outTubeInfo : junc->outTubes) {
                 Tube* tube = outTubeInfo.tube;
@@ -524,6 +524,7 @@ struct World {
                 junc->energy -= energyAmount;
                 tube->toJunction->energy += energyAmount;
                 tube->toJunction->saveSignal(junc->signal);
+                // cout << "Junction " << tube->toJunction->x << ", " << tube->toJunction->y << " saved signal " << junc->signal << " from outgoing tube." << endl;
 
                 if (tube->toJunction->energy > MAX_JUNCTION_ENERGY) {
                     tube->toJunction->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
@@ -541,7 +542,7 @@ struct World {
             double energy = junc->energy  / MAX_JUNCTION_ENERGY; // normalize energy input
             // cout << "Junction energy: " << energy << endl;
             bool touchingFoodSource = junc->isTouchingFoodSource();
-            vector<int> signalHistory = junc->signalHistory;
+            deque<int> signalHistory = junc->signalHistory;
             
             growthDecisionNet.decideAction(numInTubes,
                                             numOutTubes,

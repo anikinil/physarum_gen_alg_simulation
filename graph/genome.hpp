@@ -10,7 +10,7 @@ const vector<pair<int, int>> GROW_NET_DIMS = {
     {16, 12},
     {12, 8},
     {8, 8},
-    {8, 3}
+    {8, 4}
 };
 
 const vector<pair<int, int>> FLOW_NET_DIMS = {

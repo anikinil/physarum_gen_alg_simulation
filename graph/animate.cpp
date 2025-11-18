@@ -276,17 +276,17 @@ int main() {
             }
         }
 
-        // Tubes
-        for (auto& t : frames[currentFrame].tubes) {
-            sf::Vector2f p1(WIN_WIDTH/2 + t.x1, WIN_HEIGHT/2 + t.y1);
-            sf::Vector2f p2(WIN_WIDTH/2 + t.x2, WIN_HEIGHT/2 + t.y2);
-            float thickness = 1.f + TUBE_THICKNESS * t.flowRate;
-            if (distToSegment(mouse, p1, p2) <= thickness*0.5f) {
-                hoverText = "Tube\nflow=" + to_string(t.flowRate) +
-                "\n(x1,y1)=" + to_string(t.x1) + "," + to_string(t.y1) +
-                "\n(x2,y2)=" + to_string(t.x2) + "," + to_string(t.y2);
-            }
-        }
+        // // Tubes
+        // for (auto& t : frames[currentFrame].tubes) {
+        //     sf::Vector2f p1(WIN_WIDTH/2 + t.x1, WIN_HEIGHT/2 + t.y1);
+        //     sf::Vector2f p2(WIN_WIDTH/2 + t.x2, WIN_HEIGHT/2 + t.y2);
+        //     float thickness = 1.f + TUBE_THICKNESS * t.flowRate;
+        //     if (distToSegment(mouse, p1, p2) <= thickness*0.5f) {
+        //         hoverText = "Tube\nflow=" + to_string(t.flowRate) +
+        //         "\n(x1,y1)=" + to_string(t.x1) + "," + to_string(t.y1) +
+        //         "\n(x2,y2)=" + to_string(t.x2) + "," + to_string(t.y2);
+        //     }
+        // }
 
         // Tooltip drawing
         if (!hoverText.empty()) {
