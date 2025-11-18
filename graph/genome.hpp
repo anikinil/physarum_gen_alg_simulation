@@ -1,7 +1,7 @@
 #include <vector>
 #include "utils.hpp"
 
-const int MAX_SIGNAL_HISTORY_LENGTH = 8;
+const int MAX_SIGNAL_HISTORY_LENGTH = 4;
 const vector<int> SIGNAL_TYPES = {0, 1, 2, 3};
 
 

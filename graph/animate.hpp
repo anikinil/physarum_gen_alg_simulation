@@ -6,6 +6,8 @@
 
 using namespace std;
 
+#include "gen_alg.hpp"
+
 const int WIN_WIDTH = 2000;
 const int WIN_HEIGHT = 1500;
 
@@ -13,13 +15,15 @@ const double JUNCTION_RADIUS_FACTOR = 3.0;
 const int TUBE_THICKNESS = 10;
 
 const float FPS = 60.0f;
-const float DEFAULT_ZOOM = 0.8f;
+const float DEFAULT_ZOOM = 0.5f;
 
 
 struct JunctionVisual {
     double x;
     double y;
     double energy;
+    int signal;
+    vector<int> signalHistory;
 };
 
 struct TubeVisual {
@@ -52,13 +56,30 @@ struct Frame {
         }
 
         if (!fields[1].empty()) {
-            JunctionVisual j{stod(fields[1]), stod(fields[2]), stod(fields[3])};
+            vector<int> signalHistory;
+            for (size_t i = 0; i < MAX_SIGNAL_HISTORY_LENGTH; ++i) {
+                if (!fields[5 + i].empty()) {
+                    signalHistory.push_back(stoi(fields[5 + i]));
+                } else {
+                    signalHistory.push_back(0); // or some default value
+                }
+            }
+            JunctionVisual j{stod(fields[1]), stod(fields[2]), stod(fields[3]), stoi(fields[4]), signalHistory};
             junctions.push_back(j);
-        } else if (!fields[4].empty()) {
-            TubeVisual t{stod(fields[4]), stod(fields[5]), stod(fields[6]), stod(fields[7]), stod(fields[8])};
+        } else if (!fields[5+MAX_SIGNAL_HISTORY_LENGTH].empty()) {
+            TubeVisual t{
+                stod(fields[5+MAX_SIGNAL_HISTORY_LENGTH]),
+                stod(fields[6+MAX_SIGNAL_HISTORY_LENGTH]),
+                stod(fields[7+MAX_SIGNAL_HISTORY_LENGTH]),
+                stod(fields[8+MAX_SIGNAL_HISTORY_LENGTH]),
+                stod(fields[9+MAX_SIGNAL_HISTORY_LENGTH])};
             tubes.push_back(t);
-        } else if (!fields[9].empty()) {
-            FoodSourceVisual f{stod(fields[9]), stod(fields[10]), stod(fields[11]), stod(fields[12])};
+        } else if (!fields[10+MAX_SIGNAL_HISTORY_LENGTH].empty()) {
+            FoodSourceVisual f{
+                stod(fields[10+MAX_SIGNAL_HISTORY_LENGTH]),
+                stod(fields[11+MAX_SIGNAL_HISTORY_LENGTH]),
+                stod(fields[12+MAX_SIGNAL_HISTORY_LENGTH]),
+                stod(fields[13+MAX_SIGNAL_HISTORY_LENGTH])};
             foodSources.push_back(f);
         }
     }

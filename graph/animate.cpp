@@ -3,11 +3,25 @@
 #include <memory>
 
 #include "animate.hpp"
-#include "gen_alg.hpp"
-
 
 using namespace std;
 
+// --- hover utility ---
+bool hoverCircle(float cx, float cy, float r, const sf::Vector2f& m) {
+    float dx = m.x - cx;
+    float dy = m.y - cy;
+    return dx*dx + dy*dy <= r*r;
+}
+
+float distToSegment(sf::Vector2f p, sf::Vector2f a, sf::Vector2f b) {
+    sf::Vector2f ab = b - a;
+    float t = ((p - a).x * ab.x + (p - a).y * ab.y) / (ab.x*ab.x + ab.y*ab.y);
+    t = std::max(0.f, std::min(1.f, t));
+    sf::Vector2f proj = a + t * ab;
+    float dx = p.x - proj.x;
+    float dy = p.y - proj.y;
+    return std::sqrt(dx*dx + dy*dy);
+}
 
 vector<Frame> loadFrames() {
     vector<Frame> frames;
@@ -169,89 +183,220 @@ World readWorld(int gen) {
     return World{genome, std::move(junctions), std::move(foodSources)};
 }
 
+
+
 int main() {
-
     int gen = -1;
-
     World world = readWorld(gen);
-
-    // run and save simulation
     world.run(NUM_STEPS, true);
-
-    // Load saved generation
     vector<Frame> frames = loadFrames();
 
     size_t currentFrame = 0;
     bool paused = false;
-    
     sf::Clock clock;
     const float targetFrameTime = 1.f / FPS;
 
     sf::RenderWindow window(sf::VideoMode(WIN_WIDTH, WIN_HEIGHT), "Physarum Simulation");
-
     sf::View view(sf::FloatRect(0, 0, WIN_WIDTH, WIN_HEIGHT));
     view.zoom(DEFAULT_ZOOM);
     window.setView(view);
 
+    sf::Font font;
+    font.loadFromFile("Arial.ttf");
+
     while (window.isOpen()) {
         sf::sleep(sf::seconds(targetFrameTime) - clock.getElapsedTime());
         clock.restart();
-        
+
         sf::Event event;
         while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed)
-                window.close();
+            if (event.type == sf::Event::Closed) window.close();
             else if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Space)
-                paused = !paused;
-                if (paused && event.key.code == sf::Keyboard::Right)
-                currentFrame = min(currentFrame + 1, frames.size()-1);
-                if (paused && event.key.code == sf::Keyboard::Left)
-                currentFrame = (currentFrame == 0 ? 0 : currentFrame - 1);
+                if (event.key.code == sf::Keyboard::Space) paused = !paused;
+                if (paused && event.key.code == sf::Keyboard::Right) currentFrame = min(currentFrame + 1, frames.size()-1);
+                if (paused && event.key.code == sf::Keyboard::Left) currentFrame = (currentFrame == 0 ? 0 : currentFrame - 1);
             } else if (event.type == sf::Event::MouseWheelScrolled) {
                 sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
                 sf::Vector2f beforeZoom = window.mapPixelToCoords(pixelPos, view);
                 float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.9f : 1.1f;
                 view.zoom(zoomFactor);
                 sf::Vector2f afterZoom = window.mapPixelToCoords(pixelPos, view);
-                sf::Vector2f offset = beforeZoom - afterZoom;
-                view.move(offset);
+                view.move(beforeZoom - afterZoom);
                 window.setView(view);
             }
         }
 
         window.setView(view);
 
-        double totalEnergy = accumulate(
-            frames[currentFrame].junctions.begin(),
-            frames[currentFrame].junctions.end(), 0.0,
-            [](double sum, const JunctionVisual& j) { return sum + j.energy; }
-        );
+        double totalEnergy = accumulate(frames[currentFrame].junctions.begin(), frames[currentFrame].junctions.end(), 0.0,
+        [](double sum, const JunctionVisual& j) { return sum + j.energy; });
 
         window.setTitle("Energy: " + std::to_string(totalEnergy) + " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
         window.clear();
-        
-        // Draw objects
+
         drawFoodSources(window, frames[currentFrame].foodSources);
         drawJunctions(window, frames[currentFrame].junctions);
         drawTubes(window, frames[currentFrame].tubes);
-        
-        // // Display info text
-        // sf::Font font;
-        // // font.loadFromFile("Arial.ttf"); // or your font
-        // sf::Text info("Frame: " + std::to_string(currentFrame), font, 20);
-        // info.setFillColor(sf::Color::White);
-        // info.setPosition(10, 10);
-        // window.draw(info);
+
+        // --- Hover detection ---
+        sf::Vector2i pixel = sf::Mouse::getPosition(window);
+        sf::Vector2f mouse = window.mapPixelToCoords(pixel, view);
+
+        string hoverText;
+
+        // Food Sources
+        for (auto& f : frames[currentFrame].foodSources) {
+            float cx = WIN_WIDTH/2 + f.x;
+            float cy = WIN_HEIGHT/2 + f.y;
+            if (hoverCircle(cx, cy, f.radius, mouse)) {
+                hoverText = "FoodSource\n" +
+                string("x=") + to_string(f.x) +
+                " y=" + to_string(f.y) +
+                "\nenergy=" + to_string(f.energy);
+            }
+        }
+
+        // Junctions
+        for (auto& j : frames[currentFrame].junctions) {
+            float r = 1 + JUNCTION_RADIUS_FACTOR * sqrt(j.energy / 3.14);
+            float cx = WIN_WIDTH/2 + j.x;
+            float cy = WIN_HEIGHT/2 + j.y;
+            if (hoverCircle(cx, cy, r, mouse)) {
+                hoverText = "Junction\n" +
+                string("x=") + to_string(j.x) +
+                " y=" + to_string(j.y) +
+                "\nenergy=" + to_string(j.energy) +
+                "\nsignal=" + to_string(j.signal) + 
+                "\nsignalHistory=[";
+                for (size_t i = 0; i < j.signalHistory.size(); ++i) {
+                    hoverText += to_string(j.signalHistory[i]);
+                    if (i < j.signalHistory.size() - 1) hoverText += ", ";
+                }
+                hoverText += "]";
+            }
+        }
+
+        // Tubes
+        for (auto& t : frames[currentFrame].tubes) {
+            sf::Vector2f p1(WIN_WIDTH/2 + t.x1, WIN_HEIGHT/2 + t.y1);
+            sf::Vector2f p2(WIN_WIDTH/2 + t.x2, WIN_HEIGHT/2 + t.y2);
+            float thickness = 1.f + TUBE_THICKNESS * t.flowRate;
+            if (distToSegment(mouse, p1, p2) <= thickness*0.5f) {
+                hoverText = "Tube\nflow=" + to_string(t.flowRate) +
+                "\n(x1,y1)=" + to_string(t.x1) + "," + to_string(t.y1) +
+                "\n(x2,y2)=" + to_string(t.x2) + "," + to_string(t.y2);
+            }
+        }
+
+        // Tooltip drawing
+        if (!hoverText.empty()) {
+            sf::Text text(hoverText, font, 14);
+            text.setFillColor(sf::Color::White);
+            sf::FloatRect bounds = text.getLocalBounds();
+
+            sf::RectangleShape box;
+            box.setFillColor(sf::Color(0,0,0,180));
+            box.setSize({bounds.width + 10.f, bounds.height + 10.f});
+            box.setPosition(mouse.x + 12, mouse.y + 12);
+
+            text.setPosition(mouse.x + 17, mouse.y + 14);
+
+            window.draw(box);
+            window.draw(text);
+        }
 
         window.display();
 
         if (!paused) {
-            if (currentFrame < frames.size()-1)
-                currentFrame++;
-            else
-                paused = true;
+            if (currentFrame < frames.size()-1) currentFrame++;
+            else paused = true;
         }
     }
 }
+
+// int main() {
+
+//     int gen = -1;
+
+//     World world = readWorld(gen);
+
+//     // run and save simulation
+//     world.run(NUM_STEPS, true);
+
+//     // Load saved generation
+//     vector<Frame> frames = loadFrames();
+
+//     size_t currentFrame = 0;
+//     bool paused = false;
+    
+//     sf::Clock clock;
+//     const float targetFrameTime = 1.f / FPS;
+
+//     sf::RenderWindow window(sf::VideoMode(WIN_WIDTH, WIN_HEIGHT), "Physarum Simulation");
+
+//     sf::View view(sf::FloatRect(0, 0, WIN_WIDTH, WIN_HEIGHT));
+//     view.zoom(DEFAULT_ZOOM);
+//     window.setView(view);
+
+//     while (window.isOpen()) {
+//         sf::sleep(sf::seconds(targetFrameTime) - clock.getElapsedTime());
+//         clock.restart();
+        
+//         sf::Event event;
+//         while (window.pollEvent(event)) {
+//             if (event.type == sf::Event::Closed)
+//                 window.close();
+//             else if (event.type == sf::Event::KeyPressed) {
+//                 if (event.key.code == sf::Keyboard::Space)
+//                 paused = !paused;
+//                 if (paused && event.key.code == sf::Keyboard::Right)
+//                 currentFrame = min(currentFrame + 1, frames.size()-1);
+//                 if (paused && event.key.code == sf::Keyboard::Left)
+//                 currentFrame = (currentFrame == 0 ? 0 : currentFrame - 1);
+//             } else if (event.type == sf::Event::MouseWheelScrolled) {
+//                 sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
+//                 sf::Vector2f beforeZoom = window.mapPixelToCoords(pixelPos, view);
+//                 float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.9f : 1.1f;
+//                 view.zoom(zoomFactor);
+//                 sf::Vector2f afterZoom = window.mapPixelToCoords(pixelPos, view);
+//                 sf::Vector2f offset = beforeZoom - afterZoom;
+//                 view.move(offset);
+//                 window.setView(view);
+//             }
+//         }
+
+//         window.setView(view);
+
+//         double totalEnergy = accumulate(
+//             frames[currentFrame].junctions.begin(),
+//             frames[currentFrame].junctions.end(), 0.0,
+//             [](double sum, const JunctionVisual& j) { return sum + j.energy; }
+//         );
+
+//         window.setTitle("Energy: " + std::to_string(totalEnergy) + " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
+//         window.clear();
+        
+//         // Draw objects
+//         drawFoodSources(window, frames[currentFrame].foodSources);
+//         drawJunctions(window, frames[currentFrame].junctions);
+//         drawTubes(window, frames[currentFrame].tubes);
+        
+//         // // Display info text
+//         // sf::Font font;
+//         // // font.loadFromFile("Arial.ttf"); // or your font
+//         // sf::Text info("Frame: " + std::to_string(currentFrame), font, 20);
+//         // info.setFillColor(sf::Color::White);
+//         // info.setPosition(10, 10);
+//         // window.draw(info);
+
+//         window.display();
+
+//         if (!paused) {
+//             if (currentFrame < frames.size()-1)
+//                 currentFrame++;
+//             else
+//                 paused = true;
+//         }
+//     }
+// }
 

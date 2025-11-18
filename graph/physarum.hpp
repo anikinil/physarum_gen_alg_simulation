@@ -16,7 +16,7 @@ const double DEFAULT_JUNCTION_ENERGY = 1.0;
 
 const double GROWING_COST = 0.01;
 const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
-const double PASSIVE_ENERGY_LOSS = 0.001;
+const double PASSIVE_ENERGY_LOSS = 0.005;
 
 const int MAX_TUBES_PER_JUNCTION = 3;
 const double DEFAULT_FLOW_RATE = 0.1;
@@ -141,8 +141,7 @@ struct Junction {
             signalHistory.erase(signalHistory.begin());
         }
     }
-};  
-
+};
 
 struct FoodSource {
     const double x;
@@ -151,8 +150,6 @@ struct FoodSource {
     double energy;
     // enum class FoodType { A, B, C } type;
 };
-
-
 
 struct World {
     Genome genome;
@@ -375,7 +372,11 @@ struct World {
         if (save) {
             std::ofstream file("data/animation_frames.csv", std::ios::app);
             file << "step,"
-                 << "j_x,j_y,j_energy,"
+                 << "j_x,j_y,j_energy,j_signal,";
+                for (size_t i = 0; i < MAX_SIGNAL_HISTORY_LENGTH; ++i) {
+                    file << "j_signal_hist_" << i << ",";
+                }
+                file
                  << "t_x1,t_y1,t_x2,t_y2,t_flow_rate,"
                  << "f_x,f_y,f_radius,f_energy\n";
         }
@@ -399,21 +400,31 @@ struct World {
                  << junc->x << ','
                  << junc->y << ','
                  << junc->energy << ','
-                 << ",,,,,"
+                 << junc->signal << ',';
+                 for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j)
+                     if (j < junc->signalHistory.size())
+                         file << junc->signalHistory[j] << ',';
+                 file << ",,,,,"
                  << ",,,\n";
         }
         for (const auto& tube : tubes) {    
             file << step << ','
-                 << ",,,"
-                 << tube->x1 << ',' << tube->y1 << ','
+                 << ",,,,";
+                 for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j) {
+                     file << ",";
+                 }
+                 file << tube->x1 << ',' << tube->y1 << ','
                  << tube->x2 << ',' << tube->y2 << ','
                  << tube->flowRate << ','
                  << ",,,\n";
         }
         for (const auto& fs : foodSources) {
             file << step << ','
-                 << ",,,"
-                 << ",,,,,"
+                 << ",,,,";
+                 for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j) {
+                     file << ",";
+                 }
+                 file << ",,,,,"
                  << fs->x << ',' << fs->y << ',' << fs->radius << ','
                  << fs->energy << "\n";
         }

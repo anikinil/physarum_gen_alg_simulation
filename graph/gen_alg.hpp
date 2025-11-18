@@ -7,8 +7,8 @@
 using namespace std;
 
 const int NUM_GENERATIONS = 10000;
-const int POPULATION_SIZE = 100;
-const int NUM_TRIES = 9;
+const int POPULATION_SIZE = 60;
+const int NUM_TRIES = 7;
 
 const int NUM_STEPS = 200;
 
@@ -31,7 +31,7 @@ vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
         double radius = sqrt(energy/3.14); // area proportional to energy
         foodSources.push_back(make_unique<FoodSource>(FoodSource{x, y, radius, energy}));
     }
-    foodSources.push_back(make_unique<FoodSource>(FoodSource{0.0, 0.0, 5.0, 200.0})); // Add a food source at the origin with zero energy and radius
+    foodSources.push_back(make_unique<FoodSource>(FoodSource{0.0, 0.0, 5.0, 2000.0})); // Add a food source at the origin with zero energy and radius
     return foodSources;
 }
 

@@ -1,5 +1,4 @@
 #include "gen_alg.hpp"
-#include "utils.hpp"
 
 #include <vector>
 #include <iostream>
@@ -170,6 +169,9 @@ void runGeneticAlgorithm() {
         double averageFitness = accumulate(population.begin(), population.end(), 0.0, [](double sum, const unique_ptr<World>& w) { return sum + w->fitness; }) / population.size();
         
         saveGenomeAndFitness(population.front()->getGenome(), bestFitness, averageFitness, gen);
+
+        // plot
+        system("python3 plot.py");
 
         cout << "Population sorted by fitness:" << endl;
         for (size_t i = 0; i < population.size(); i++) {
