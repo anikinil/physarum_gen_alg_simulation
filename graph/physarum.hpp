@@ -386,6 +386,7 @@ struct World {
         if (save) {
             std::ofstream file("data/animation_frames.csv", std::ios::app);
             file << "step,"
+                 << "fitness,"
                  << "j_x,j_y,j_energy,j_touching_food,j_signal,";
                 for (size_t i = 0; i < MAX_SIGNAL_HISTORY_LENGTH; ++i) {
                     file << "j_signal_hist_" << i << ",";
@@ -412,6 +413,7 @@ struct World {
         for (const auto& junc : junctions) {
             if (junc->energy < 1e-6) junc->energy = 0.0;
             file << step << ','
+                 << fitness << ','
                  << junc->x << ','
                  << junc->y << ','
                  << junc->energy << ','
@@ -426,7 +428,7 @@ struct World {
         for (const auto& tube : tubes) {
             // if (tube->flowRate < 1e-6) tube->flowRate = 0.0;
             file << step << ','
-                 << ",,,,,";
+                 << fitness << ",,,,,,";
                  for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j)
                      file << ",";
                  file << tube->x1 << ',' << tube->y1 << ','
@@ -436,7 +438,7 @@ struct World {
         }
         for (const auto& fs : foodSources) {
             file << step << ','
-                 << ",,,,,";
+                 << fitness << ",,,,,,";
                  for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j)
                      file << ",";
                  file << ",,,,,"
@@ -449,6 +451,7 @@ struct World {
         updateJunctions();
         updateTubes();
         updateFood();
+        updateFitness();
     }
 
     void removeDeadJunctionsAndTubes() {
@@ -655,6 +658,9 @@ struct World {
         }
     }
 
+    void updateFitness() {
+        calculateFitness();
+    }
 
     void calculateFitness() {
         
@@ -663,7 +669,7 @@ struct World {
 
 
         // total cell energy fitness
-        
+
         // double totalEnergy = 0.0;
         // for (const auto& junc : junctions) {
         //     totalEnergy += junc->energy;

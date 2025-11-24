@@ -308,10 +308,10 @@ int main() {
 
         window.setView(view);
 
-        double totalEnergy = accumulate(frames[currentFrame].junctions.begin(), frames[currentFrame].junctions.end(), 0.0,
-        [](double sum, const JunctionVisual& j) { return sum + j.energy; });
+        // double totalEnergy = accumulate(frames[currentFrame].junctions.begin(), frames[currentFrame].junctions.end(), 0.0,
+        // [](double sum, const JunctionVisual& j) { return sum + j.energy; });
 
-        window.setTitle("Energy: " + std::to_string(totalEnergy) + 
+        window.setTitle("Fitness: " + std::to_string(frames[currentFrame].fitness) + 
             " | Junctions: " + std::to_string(frames[currentFrame].junctions.size()) +
             " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
         window.clear(BACKGROUND_COLOR);
