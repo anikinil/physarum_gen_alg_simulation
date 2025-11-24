@@ -15,10 +15,10 @@ const double JUNCTION_RADIUS_FACTOR = 3.0;
 const int TUBE_THICKNESS = 5;
 
 const float FPS = 60.0f;
-const float DEFAULT_ZOOM = 0.5f;
+const float DEFAULT_ZOOM = 0.4f;
 
 
-const int OBJECT_TRANSPARENCY = 100;
+const int OBJECT_TRANSPARENCY = 80;
 
 const sf::Color BACKGROUND_COLOR(28, 43, 52);
 const sf::Color JUNCTION_COLOR(255, 200, 40);

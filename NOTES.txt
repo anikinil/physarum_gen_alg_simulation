@@ -24,5 +24,4 @@ Growth:
 -----------------
 Animation:
 -----------------
-- drag and drop, to move view around
-- object info on seperate view, to prevent zoom
+- if junction dead, color of attached tube darker too

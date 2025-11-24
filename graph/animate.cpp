@@ -114,6 +114,17 @@ void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
 //     return foodSources;
 // }
 
+void drawLoadingScreen(sf::RenderWindow& window, const sf::Font& font) {
+    sf::RectangleShape overlay(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));
+    overlay.setFillColor(sf::Color(0, 0, 0, 100));
+    window.draw(overlay);
+    sf::Text loadingText("Loading...", font, 50);
+    loadingText.setFillColor(sf::Color::White);
+    loadingText.setPosition(WIN_WIDTH / 2 - loadingText.getLocalBounds().width / 2, WIN_HEIGHT / 2 - loadingText.getLocalBounds().height / 2);
+    window.draw(loadingText);
+    window.display();
+}
+
 
 World readWorld(int gen) {
 
@@ -225,8 +236,23 @@ int main() {
             if (event.type == sf::Event::Closed) window.close();
             else if (event.type == sf::Event::KeyPressed) {
                 if (event.key.code == sf::Keyboard::Space) paused = !paused;
-                if (paused && event.key.code == sf::Keyboard::Right) currentFrame = min(currentFrame + 1, frames.size()-1);
-                if (paused && event.key.code == sf::Keyboard::Left) currentFrame = (currentFrame == 0 ? 0 : currentFrame - 1);
+                if (event.key.code == sf::Keyboard::Right) {
+                    if (!paused) paused = true;
+                    currentFrame = min(currentFrame + 1, frames.size()-1); 
+                }
+                if (event.key.code == sf::Keyboard::Left) {
+                    if (!paused) paused = true;
+                    currentFrame = (currentFrame == 0 ? 0 : currentFrame - 1);
+                }
+                // restart animation with next genome
+                if (event.key.code == sf::Keyboard::Enter) {
+                    drawLoadingScreen(window, font);
+                    world = readWorld(gen);
+                    world.run(NUM_STEPS, true);
+                    frames = loadFrames();
+                    currentFrame = 0;
+                    paused = false;
+                }
             } else if (event.type == sf::Event::MouseWheelScrolled) {
                 sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
                 sf::Vector2f beforeZoom = window.mapPixelToCoords(pixelPos, view);
@@ -258,7 +284,7 @@ int main() {
 
         string hoverText;
 
-        // Food Sources
+        // Food source info
         for (auto& f : frames[currentFrame].foodSources) {
             float cx = WIN_WIDTH/2 + f.x;
             float cy = WIN_HEIGHT/2 + f.y;
@@ -270,7 +296,7 @@ int main() {
             }
         }
 
-        // Junctions
+        // Junction info
         for (auto& j : frames[currentFrame].junctions) {
             float r = 1 + JUNCTION_RADIUS_FACTOR * sqrt(j.energy / 3.14);
             float cx = WIN_WIDTH/2 + j.x;
@@ -291,7 +317,7 @@ int main() {
             }
         }
 
-        // // Tubes
+        // // Tube info
         // for (auto& t : frames[currentFrame].tubes) {
         //     sf::Vector2f p1(WIN_WIDTH/2 + t.x1, WIN_HEIGHT/2 + t.y1);
         //     sf::Vector2f p2(WIN_WIDTH/2 + t.x2, WIN_HEIGHT/2 + t.y2);
@@ -325,7 +351,7 @@ int main() {
             float ty = mp.y + boxOffsetY;
 
             sf::RectangleShape box;
-            box.setFillColor(sf::Color(0,0,0,180));
+            box.setFillColor(sf::Color(0, 0, 0, 180));
             box.setSize({bounds.width + static_cast<float>(2*textOffsetX), bounds.height + static_cast<float>(4*textOffsetY)});
             box.setPosition(tx, ty);
 
