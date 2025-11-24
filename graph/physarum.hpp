@@ -15,9 +15,9 @@ using namespace std;
 
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
 
-const double GROWING_COST = 0.01;
+const double GROWING_COST = 0.005;
 const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
-const double PASSIVE_ENERGY_LOSS = 0.005;
+const double PASSIVE_ENERGY_LOSS = 0.01;
 
 const int MAX_TUBES_PER_JUNCTION = 3;
 const double DEFAULT_FLOW_RATE = 0.1;
@@ -27,7 +27,7 @@ const double TUBE_LENGTH = 10.0;
 const double MAX_JUNCTION_ENERGY = 10.0;
 const double MAX_TUBE_FLOW_RATE = 2.0;
 
-const double FOOD_ENERGY_ABSORB_RATE = 50.0;
+const double FOOD_ENERGY_ABSORB_RATE = 5.0;
 
 
 struct Junction;
@@ -180,14 +180,14 @@ struct World {
         genome.mutate(mutation_rate, mutation_strength);
     }
 
-    bool touchingFoodSource(const Junction& junc) {
+    FoodSource* touchingFoodSource(const Junction& junc) {
         for (const auto& fs : foodSources) {
             double dist = sqrt((junc.x - fs->x) * (junc.x - fs->x) + (junc.y - fs->y) * (junc.y - fs->y));
             if (dist <= fs->radius) {
-                return true;
+                return fs.get();
             }
         }
-        return false;
+        return nullptr;
     }
 
     FoodSource* getFoodSourceAt(const Junction& junc) {
@@ -221,10 +221,8 @@ struct World {
             from.outTubes.push_back({ newTube.get(), angle });
             newJuncPtr->inTubes.push_back({ newTube.get(), angle });
 
-            if (touchingFoodSource(*newJunction)) {
-                newJuncPtr->foodSource = getFoodSourceAt(*newJunction);
-            }
-
+            newJuncPtr->foodSource = touchingFoodSource(*newJunction);
+            
             // add to world
             tubes.push_back(std::move(newTube));
             junctions.push_back(std::move(newJunction));
@@ -237,6 +235,8 @@ struct World {
 
             auto newJunction = std::make_unique<Junction>(Junction{newX, newY, DEFAULT_JUNCTION_ENERGY});
             Junction* newJuncPtr = newJunction.get();
+
+            newJuncPtr->foodSource = touchingFoodSource(*newJunction);
 
             auto newTube = std::make_unique<Tube>(Tube{
                 from.x, from.y, newX, newY, DEFAULT_FLOW_RATE, &from, newJuncPtr
@@ -293,6 +293,9 @@ struct World {
 
         from.energy -= DEFAULT_JUNCTION_ENERGY; // energy passed to new junction
         from.energy -= GROWING_COST; // cost of growing
+
+        // prevent noise
+        if (from.energy < 1e-6) from.energy = 0.0;    
     }
 
     // Axis-aligned bounding box overlap check
@@ -373,7 +376,7 @@ struct World {
         if (save) {
             std::ofstream file("data/animation_frames.csv", std::ios::app);
             file << "step,"
-                 << "j_x,j_y,j_energy,j_signal,";
+                 << "j_x,j_y,j_energy,j_touching_food,j_signal,";
                 for (size_t i = 0; i < MAX_SIGNAL_HISTORY_LENGTH; ++i) {
                     file << "j_signal_hist_" << i << ",";
                 }
@@ -397,10 +400,12 @@ struct World {
         std::ofstream file("data/animation_frames.csv", std::ios::app);
 
         for (const auto& junc : junctions) {
+            if (junc->energy < 1e-6) junc->energy = 0.0;
             file << step << ','
                  << junc->x << ','
                  << junc->y << ','
                  << junc->energy << ','
+                 << (junc->isTouchingFoodSource() ? 1 : 0) << ','
                  << junc->signal << ',';
                  for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j)
                      if (j < junc->signalHistory.size())
@@ -408,9 +413,10 @@ struct World {
                  file << ",,,,,"
                  << ",,,\n";
         }
-        for (const auto& tube : tubes) {    
+        for (const auto& tube : tubes) {
+            // if (tube->flowRate < 1e-6) tube->flowRate = 0.0;
             file << step << ','
-                 << ",,,,";
+                 << ",,,,,";
                  for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j)
                      file << ",";
                  file << tube->x1 << ',' << tube->y1 << ','
@@ -420,7 +426,7 @@ struct World {
         }
         for (const auto& fs : foodSources) {
             file << step << ','
-                 << ",,,,";
+                 << ",,,,,";
                  for (size_t j = 0; j < MAX_SIGNAL_HISTORY_LENGTH; ++j)
                      file << ",";
                  file << ",,,,,"
@@ -531,7 +537,7 @@ struct World {
                 }
             }
 
-            if (junc->energy < 1e-12) continue; // depleted junctions can't grow
+            if (junc->energy < 1e-6) continue; // depleted junctions can't grow
 
             // handle growth decision
 
@@ -563,8 +569,9 @@ struct World {
             junc->signal = growthDecisionNet.signal;
 
             // passive energy loss
-            junc->energy -= PASSIVE_ENERGY_LOSS/junc->energy;
-            if (junc->energy < 1e-12) junc->energy = 0.0;
+            junc->energy *= 1 - PASSIVE_ENERGY_LOSS;
+            // junc->energy -= PASSIVE_ENERGY_LOSS/junc->energy;
+            if (junc->energy < 1e-6) junc->energy = 0.0;
         }        
     }
     
@@ -593,9 +600,6 @@ struct World {
                 tube->flowRate -= FLOW_RATE_CHANGE_STEP;
             }
 
-            // clamp flow rate to zero to prevent noise
-            if (tube->flowRate < 1e-12) tube->flowRate = 0.0;
-
             // rearrange tube direction if flow rate changes to negative
             if (tube->flowRate < 0) {
                 std::swap(tube->fromJunction, tube->toJunction);
@@ -603,7 +607,8 @@ struct World {
                 tube->fromJunction->switchTubeDirection(*tube);
                 tube->toJunction->switchTubeDirection(*tube);
             }
-
+            
+            if (tube->flowRate < 1e-6) tube->flowRate = 0.0;
         }
     }
 
@@ -618,6 +623,7 @@ struct World {
                 }
                 junc->foodSource->energy -= FOOD_ENERGY_ABSORB_RATE;
                 if (junc->foodSource->energy < 0) {
+                    // cout << "Food source at (" << junc->foodSource->x << ", " << junc->foodSource->y << ") depleted." << endl;
                     junc->foodSource = nullptr; // food source depleted
                 }
             }

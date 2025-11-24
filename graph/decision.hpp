@@ -40,9 +40,9 @@ struct GrowthDecisionNet {
             static_cast<double>(touchingFoodSource)
         };
 
-        int num_signal_types = SIGNAL_TYPES.size();
-        for (int c : SIGNAL_TYPES) {
-            double signal_value = static_cast<double>(c) / num_signal_types;
+        
+        for (int signal : signalHistory) {
+            double signal_value = static_cast<double>(signal) / NUM_SIGNAL_TYPES;
             input.push_back(signal_value);
         }
         
@@ -51,7 +51,7 @@ struct GrowthDecisionNet {
         growthProbability = pred[0];
         growthAngle = pred[1] * 2.0 * M_PI;
         angleVariance = pred[2] * M_PI;
-        signal = static_cast<int>(pred[3] * num_signal_types);
+        signal = static_cast<int>(pred[3] * NUM_SIGNAL_TYPES);
     }
 };
 

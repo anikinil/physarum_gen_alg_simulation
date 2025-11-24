@@ -3,7 +3,7 @@
 
 const int MAX_SIGNAL_HISTORY_LENGTH = 4;
 const vector<int> SIGNAL_TYPES = {0, 1, 2, 3};
-
+const int NUM_SIGNAL_TYPES = SIGNAL_TYPES.size();
 
 const vector<pair<int, int>> GROW_NET_DIMS = {
     {MAX_SIGNAL_HISTORY_LENGTH + 8, 16},
@@ -22,8 +22,6 @@ const vector<pair<int, int>> FLOW_NET_DIMS = {
     // total: 94
 };
 // total genome size: 309
-
-double INITIAL_WEIGHT_RANGE = 3;
 
 using namespace std;
 

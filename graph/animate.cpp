@@ -57,12 +57,12 @@ void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& f
     for (const auto& food : foodSources) {
         float radius = food.radius;
         sf::CircleShape area(radius);
-        area.setFillColor(sf::Color(255, 130, 40));
+        area.setFillColor(sf::Color(100, 190, 0));
         area.setPosition(WIN_WIDTH/2 + food.x - radius, WIN_HEIGHT/2 + food.y - radius);
 
         sf::CircleShape capacity(sqrt(food.energy/3.14));
         capacity.setFillColor(sf::Color::Transparent);
-        capacity.setOutlineColor(sf::Color::Blue);
+        capacity.setOutlineColor(sf::Color::White);
         capacity.setOutlineThickness(0.5);
         capacity.setPosition(WIN_WIDTH/2 + food.x - capacity.getRadius(), WIN_HEIGHT/2 + food.y - capacity.getRadius());
         window.draw(area);
@@ -231,7 +231,9 @@ int main() {
         double totalEnergy = accumulate(frames[currentFrame].junctions.begin(), frames[currentFrame].junctions.end(), 0.0,
         [](double sum, const JunctionVisual& j) { return sum + j.energy; });
 
-        window.setTitle("Energy: " + std::to_string(totalEnergy) + " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
+        window.setTitle("Energy: " + std::to_string(totalEnergy) + 
+            " | Junctions: " + std::to_string(frames[currentFrame].junctions.size()) +
+            " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
         window.clear();
 
         drawFoodSources(window, frames[currentFrame].foodSources);
@@ -266,6 +268,7 @@ int main() {
                 string("x=") + to_string(j.x) +
                 " y=" + to_string(j.y) +
                 "\nenergy=" + to_string(j.energy) +
+                "\ntouchingFoodSource=" + j.touchingFoodSource +
                 "\nsignal=" + to_string(j.signal) + 
                 "\nsignalHistory=[";
                 for (size_t i = 0; i < j.signalHistory.size(); ++i) {

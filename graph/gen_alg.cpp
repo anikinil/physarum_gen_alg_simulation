@@ -87,8 +87,9 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         nextGeneration.push_back(make_unique<World>(currentPopulation[i]->getGenome(), std::move(junctions), std::move(foodSources)));
     }
 
+    int numCrossed = POPULATION_SIZE * CROSSED_PROPORTION;
     // Generate offspring through crossover and mutation
-    while (nextGeneration.size() < POPULATION_SIZE) {
+    while (nextGeneration.size() < numElite + numCrossed) {
         int parent1Idx = Random::randint(0, numElite - 1);
         int parent2Idx = Random::randint(0, numElite - 1);
         Genome childGenome;
@@ -107,6 +108,19 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
 
         auto childWorld = make_unique<World>(childGenome, std::move(junctions), std::move(foodSources));
         nextGeneration.push_back(std::move(childWorld));
+    }
+
+    while (nextGeneration.size() < POPULATION_SIZE) {
+        // Fill the rest of the population with mutated copies of elites
+        int eliteIdx = Random::randint(0, numElite - 1);
+        Genome mutatedGenome = currentPopulation[eliteIdx]->getGenome();
+        mutatedGenome.mutate(DEFAULT_MUTATION_RATE, MUTATION_STRENGTH);
+
+        vector<unique_ptr<Junction>> junctions;
+        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
+        vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
+
+        nextGeneration.push_back(make_unique<World>(mutatedGenome, std::move(junctions), std::move(foodSources)));
     }
 
     return nextGeneration;
@@ -136,11 +150,17 @@ void runGeneticAlgorithm() {
         cout << "Generation " << gen+1 << "/" << NUM_GENERATIONS << endl;
         cout << "-----------------------------------" << endl;
         
+        int count = 0;
         for (const auto& ind : population) {
+
+            cout << "Evaluating individual " << count << endl;
+            count++;
 
             vector<double> ind_fitnesses;
             
             for (int t = 0; t < NUM_TRIES; t++) {
+
+                cout << " Try " << t+1 << "/" << NUM_TRIES << endl;
 
                 ind->run(NUM_STEPS, false);
                 ind->calculateFitness();
@@ -159,8 +179,8 @@ void runGeneticAlgorithm() {
                     ind->foodSources = std::move(foodSources);
                 }
             }
-            // ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() / 2); // median fitness
-            ind->fitness = *min_element(ind_fitnesses.begin(), ind_fitnesses.end()); // worst fitness
+            ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() * 0.33); // fitness is the 33rd percentile
+            // ind->fitness = *min_element(ind_fitnesses.begin(), ind_fitnesses.end()); // worst fitness
         }
 
         sortByFitness(population);
