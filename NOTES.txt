@@ -3,10 +3,8 @@ TODO:
 =================
 
 -----------------
-General:
+Optimization:
 -----------------
-
-- think about adding memory
 
 - use hash table to save junctions and tubes for faster collision detection
 
@@ -26,6 +24,5 @@ Growth:
 -----------------
 Animation:
 -----------------
-- fix yellow screen at the last step
 - drag and drop, to move view around
-- show object info on hover
+- object info on seperate view, to prevent zoom

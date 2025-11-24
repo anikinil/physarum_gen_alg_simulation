@@ -163,14 +163,10 @@ struct World {
     FlowDecisionNet flowDecisionNet;
     double fitness = 0.0;
     
-    World(const Genome& g,
-        vector<unique_ptr<Junction>>&& js,
-        vector<unique_ptr<FoodSource>>&& fs)
+    World(const Genome& g)
         : genome(g),
         growthDecisionNet(g),
-        flowDecisionNet(g),
-        junctions(std::move(js)),
-        foodSources(std::move(fs)) {}
+        flowDecisionNet(g) {}
 
     Genome getGenome() const {
         return genome;
@@ -200,6 +196,19 @@ struct World {
         return nullptr;
     }
 
+    void placeNewFoodSources(vector<unique_ptr<FoodSource>>&& newFoodSources) {
+        for (auto& fs : newFoodSources) {
+            foodSources.push_back(std::move(fs));
+        }
+    }
+
+    void placeNewJunctions(vector<unique_ptr<Junction>>&& newJunctions) {
+        for (auto& junc : newJunctions) {
+            junctions.push_back(std::move(junc));
+            junctions.back()->foodSource = getFoodSourceAt(*junctions.back());
+        }
+    }
+
     void growTubeFrom(Junction& from, double angle) {
 
         double newX = from.x + TUBE_LENGTH * cos(angle);
@@ -222,7 +231,6 @@ struct World {
             newJuncPtr->inTubes.push_back({ newTube.get(), angle });
 
             newJuncPtr->foodSource = touchingFoodSource(*newJunction);
-            
             // add to world
             tubes.push_back(std::move(newTube));
             junctions.push_back(std::move(newJunction));

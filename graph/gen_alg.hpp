@@ -10,7 +10,7 @@ const int NUM_GENERATIONS = 2;
 const int POPULATION_SIZE = 5;
 const int NUM_TRIES = 3;
 
-const int NUM_STEPS = 40;
+const int NUM_STEPS = 10;
 
 const float ELITE_PROPORTION = 0.3f;
 const float CROSSED_PROPORTION = 0.2f;

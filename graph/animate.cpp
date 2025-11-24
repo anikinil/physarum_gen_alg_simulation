@@ -180,7 +180,10 @@ World readWorld(int gen) {
     vector<unique_ptr<Junction>> junctions;
     junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
     vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
-    return World{genome, std::move(junctions), std::move(foodSources)};
+    World world(genome);
+    world.placeNewFoodSources(std::move(foodSources));
+    world.placeNewJunctions(std::move(junctions));
+    return world;
 }
 
 
@@ -200,6 +203,15 @@ int main() {
     sf::View view(sf::FloatRect(0, 0, WIN_WIDTH, WIN_HEIGHT));
     view.zoom(DEFAULT_ZOOM);
     window.setView(view);
+
+    sf::View uiView(sf::FloatRect(0, 0, WIN_WIDTH, WIN_HEIGHT));
+
+    sf::Vector2f dragStart;
+    bool dragging = false;
+
+    sf::Cursor grabbing, point;
+    grabbing.loadFromSystem(sf::Cursor::SizeAll);
+    point.loadFromSystem(sf::Cursor::Arrow);
 
     sf::Font font;
     font.loadFromFile("Arial.ttf");
@@ -252,9 +264,9 @@ int main() {
             float cy = WIN_HEIGHT/2 + f.y;
             if (hoverCircle(cx, cy, f.radius, mouse)) {
                 hoverText = "FoodSource\n" +
-                string("x=") + to_string(f.x) +
-                " y=" + to_string(f.y) +
-                "\nenergy=" + to_string(f.energy);
+                string("x = ") + to_string(f.x) +
+                " y = " + to_string(f.y) +
+                "\nenergy = " + to_string(f.energy);
             }
         }
 
@@ -265,12 +277,12 @@ int main() {
             float cy = WIN_HEIGHT/2 + j.y;
             if (hoverCircle(cx, cy, r, mouse)) {
                 hoverText = "Junction\n" +
-                string("x=") + to_string(j.x) +
-                " y=" + to_string(j.y) +
-                "\nenergy=" + to_string(j.energy) +
-                "\ntouchingFoodSource=" + j.touchingFoodSource +
-                "\nsignal=" + to_string(j.signal) + 
-                "\nsignalHistory=[";
+                string("x = ") + to_string(j.x) +
+                " y = " + to_string(j.y) +
+                "\nenergy = " + to_string(j.energy) +
+                "\ntouchingFoodSource = " + j.touchingFoodSource +
+                "\nsignal = " + to_string(j.signal) + 
+                "\nsignalHistory = [";
                 for (size_t i = 0; i < j.signalHistory.size(); ++i) {
                     hoverText += to_string(j.signalHistory[i]);
                     if (i < j.signalHistory.size() - 1) hoverText += ", ";
@@ -291,18 +303,27 @@ int main() {
         //     }
         // }
 
+        window.setView(uiView);
         // Tooltip drawing
         if (!hoverText.empty()) {
-            sf::Text text(hoverText, font, 14);
+
+            window.setMouseCursor(point);
+
+            sf::Vector2i mp = sf::Mouse::getPosition(window);
+
+            sf::Text text(hoverText, font, 40);
             text.setFillColor(sf::Color::White);
             sf::FloatRect bounds = text.getLocalBounds();
+
+            float tx = mp.x + 12;
+            float ty = mp.y + 12;
 
             sf::RectangleShape box;
             box.setFillColor(sf::Color(0,0,0,180));
             box.setSize({bounds.width + 10.f, bounds.height + 10.f});
-            box.setPosition(mouse.x + 12, mouse.y + 12);
+            box.setPosition(tx, ty);
 
-            text.setPosition(mouse.x + 17, mouse.y + 14);
+            text.setPosition(tx + 5, ty + 3);
 
             window.draw(box);
             window.draw(text);
@@ -314,92 +335,27 @@ int main() {
             if (currentFrame < frames.size()-1) currentFrame++;
             else paused = true;
         }
+
+        // --- Dragging ---
+        if (event.type == sf::Event::MouseButtonPressed &&
+            event.mouseButton.button == sf::Mouse::Left) {
+            dragging = true;
+            window.setMouseCursor(grabbing);
+            dragStart = window.mapPixelToCoords(sf::Mouse::getPosition(window), view);
+        }
+
+        if (event.type == sf::Event::MouseButtonReleased &&
+            event.mouseButton.button == sf::Mouse::Left) {
+            window.setMouseCursor(point);
+            dragging = false;
+        }
+
+        if (event.type == sf::Event::MouseMoved && dragging) {
+            sf::Vector2f newPos = window.mapPixelToCoords(sf::Mouse::getPosition(window), view);
+            sf::Vector2f delta = dragStart - newPos;
+            view.move(delta);
+            window.setView(view);
+        }
+
     }
 }
-
-// int main() {
-
-//     int gen = -1;
-
-//     World world = readWorld(gen);
-
-//     // run and save simulation
-//     world.run(NUM_STEPS, true);
-
-//     // Load saved generation
-//     vector<Frame> frames = loadFrames();
-
-//     size_t currentFrame = 0;
-//     bool paused = false;
-    
-//     sf::Clock clock;
-//     const float targetFrameTime = 1.f / FPS;
-
-//     sf::RenderWindow window(sf::VideoMode(WIN_WIDTH, WIN_HEIGHT), "Physarum Simulation");
-
-//     sf::View view(sf::FloatRect(0, 0, WIN_WIDTH, WIN_HEIGHT));
-//     view.zoom(DEFAULT_ZOOM);
-//     window.setView(view);
-
-//     while (window.isOpen()) {
-//         sf::sleep(sf::seconds(targetFrameTime) - clock.getElapsedTime());
-//         clock.restart();
-        
-//         sf::Event event;
-//         while (window.pollEvent(event)) {
-//             if (event.type == sf::Event::Closed)
-//                 window.close();
-//             else if (event.type == sf::Event::KeyPressed) {
-//                 if (event.key.code == sf::Keyboard::Space)
-//                 paused = !paused;
-//                 if (paused && event.key.code == sf::Keyboard::Right)
-//                 currentFrame = min(currentFrame + 1, frames.size()-1);
-//                 if (paused && event.key.code == sf::Keyboard::Left)
-//                 currentFrame = (currentFrame == 0 ? 0 : currentFrame - 1);
-//             } else if (event.type == sf::Event::MouseWheelScrolled) {
-//                 sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
-//                 sf::Vector2f beforeZoom = window.mapPixelToCoords(pixelPos, view);
-//                 float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.9f : 1.1f;
-//                 view.zoom(zoomFactor);
-//                 sf::Vector2f afterZoom = window.mapPixelToCoords(pixelPos, view);
-//                 sf::Vector2f offset = beforeZoom - afterZoom;
-//                 view.move(offset);
-//                 window.setView(view);
-//             }
-//         }
-
-//         window.setView(view);
-
-//         double totalEnergy = accumulate(
-//             frames[currentFrame].junctions.begin(),
-//             frames[currentFrame].junctions.end(), 0.0,
-//             [](double sum, const JunctionVisual& j) { return sum + j.energy; }
-//         );
-
-//         window.setTitle("Energy: " + std::to_string(totalEnergy) + " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
-//         window.clear();
-        
-//         // Draw objects
-//         drawFoodSources(window, frames[currentFrame].foodSources);
-//         drawJunctions(window, frames[currentFrame].junctions);
-//         drawTubes(window, frames[currentFrame].tubes);
-        
-//         // // Display info text
-//         // sf::Font font;
-//         // // font.loadFromFile("Arial.ttf"); // or your font
-//         // sf::Text info("Frame: " + std::to_string(currentFrame), font, 20);
-//         // info.setFillColor(sf::Color::White);
-//         // info.setPosition(10, 10);
-//         // window.draw(info);
-
-//         window.display();
-
-//         if (!paused) {
-//             if (currentFrame < frames.size()-1)
-//                 currentFrame++;
-//             else
-//                 paused = true;
-//         }
-//     }
-// }
-

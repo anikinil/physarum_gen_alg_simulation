@@ -19,13 +19,23 @@ using namespace std;
 vector<unique_ptr<World>> generateInitialPopulation() {
     vector<unique_ptr<World>> population;
 
+    cout << "HERE" << endl;
+
+
     for (int i = 0; i < POPULATION_SIZE; i++) {
 
         vector<unique_ptr<Junction>> junctions;
-        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
         vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
-        auto world = make_unique<World>(Genome(), std::move(junctions), std::move(foodSources));
+        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
+        auto world = make_unique<World>(Genome());
+        cout << "HERE2" << endl;
+        world->placeNewFoodSources(std::move(foodSources));
+        cout << "HERE3" << endl;
+        world->placeNewJunctions(std::move(junctions));
+        cout << "HERE4" << endl;
         population.push_back(std::move(world));
+
+        cout << "Created individual " << i << endl;
     }
 
     return population;
@@ -83,8 +93,9 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         vector<unique_ptr<Junction>> junctions;
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
         vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
-
-        nextGeneration.push_back(make_unique<World>(currentPopulation[i]->getGenome(), std::move(junctions), std::move(foodSources)));
+        nextGeneration.push_back(make_unique<World>(currentPopulation[i]->getGenome()));
+        nextGeneration.back()->placeNewFoodSources(std::move(foodSources));
+        nextGeneration.back()->placeNewJunctions(std::move(junctions));
     }
 
     int numCrossed = POPULATION_SIZE * CROSSED_PROPORTION;
@@ -106,7 +117,9 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
         vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
 
-        auto childWorld = make_unique<World>(childGenome, std::move(junctions), std::move(foodSources));
+        auto childWorld = make_unique<World>(childGenome);
+        childWorld->placeNewFoodSources(std::move(foodSources));
+        childWorld->placeNewJunctions(std::move(junctions));
         nextGeneration.push_back(std::move(childWorld));
     }
 
@@ -120,7 +133,9 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
         vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
 
-        nextGeneration.push_back(make_unique<World>(mutatedGenome, std::move(junctions), std::move(foodSources)));
+        nextGeneration.push_back(make_unique<World>(mutatedGenome));
+        nextGeneration.back()->placeNewFoodSources(std::move(foodSources));
+        nextGeneration.back()->placeNewJunctions(std::move(junctions));
     }
 
     return nextGeneration;
