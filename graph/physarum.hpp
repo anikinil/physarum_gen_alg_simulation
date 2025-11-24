@@ -15,19 +15,19 @@ using namespace std;
 
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
 
-const double GROWING_COST = 0.005;
+const double GROWING_COST = 0.001;
 const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
 const double PASSIVE_ENERGY_LOSS = 0.02;
 
-const int MAX_TUBES_PER_JUNCTION = 3;
+const int MAX_TUBES_PER_JUNCTION = 4;
 const double DEFAULT_FLOW_RATE = 0.1;
 const double FLOW_RATE_CHANGE_STEP = 0.1;
-const double TUBE_LENGTH = 10.0;
+const double TUBE_LENGTH = 5.0;
 
 const double MAX_JUNCTION_ENERGY = 10.0;
 const double MAX_TUBE_FLOW_RATE = 2.0;
 
-const double FOOD_ENERGY_ABSORB_RATE = 0.5;
+const double FOOD_ENERGY_ABSORB_RATE = 0.1;
 
 
 struct Junction;

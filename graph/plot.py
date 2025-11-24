@@ -28,7 +28,7 @@ def plot_csv(data_filename, plot_filename, show=False):
     plt.plot(generations, average, label='Average')
     plt.xlabel('Generation')
     plt.ylabel('Score')
-    plt.title(f'Gen: {last_gen}/{last_gen}')
+    plt.title(f'Gen: {last_gen + 1}')
     plt.legend()
     plt.grid(True)
     plt.ylim(bottom=0)

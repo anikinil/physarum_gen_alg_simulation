@@ -51,7 +51,9 @@ struct GrowthDecisionNet {
         growthProbability = pred[0];
         growthAngle = pred[1] * 2.0 * M_PI;
         angleVariance = pred[2] * M_PI;
-        signal = static_cast<int>(pred[3] * NUM_SIGNAL_TYPES);
+        // if (static_cast<int>(pred[3] * NUM_SIGNAL_TYPES) == 0)
+        //     cout << "Signal raw: " << pred[3] << ", scaled: " << pred[3] * NUM_SIGNAL_TYPES << " casted: " << static_cast<int>(pred[3] * NUM_SIGNAL_TYPES) << endl;
+        signal = min(static_cast<int>(pred[3] * NUM_SIGNAL_TYPES), NUM_SIGNAL_TYPES - 1);
     }
 };
 

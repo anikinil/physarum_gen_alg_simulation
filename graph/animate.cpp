@@ -85,7 +85,7 @@ void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junct
 
 void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
     for (const auto& tube : tubes) {
-        float thickness = 1.f + TUBE_THICKNESS * static_cast<float>(tube.flowRate);
+        float thickness = MIN_TUBE_THICKNESS + TUBE_THICKNESS_FACTOR * static_cast<float>(tube.flowRate);
         sf::Vector2f p1(WIN_WIDTH/2 + tube.x1, WIN_HEIGHT/2 + tube.y1);
         sf::Vector2f p2(WIN_WIDTH/2 + tube.x2, WIN_HEIGHT/2 + tube.y2);
         sf::Vector2f dir = p2 - p1;
@@ -123,6 +123,38 @@ void drawLoadingScreen(sf::RenderWindow& window, const sf::Font& font) {
     loadingText.setPosition(WIN_WIDTH / 2 - loadingText.getLocalBounds().width / 2, WIN_HEIGHT / 2 - loadingText.getLocalBounds().height / 2);
     window.draw(loadingText);
     window.display();
+}
+
+void drawGrid(sf::RenderWindow& window) {
+    const int gridSpacing = 50;
+    sf::Color gridColor(200, 200, 200, 50);
+
+    // float normalThickness = .4f;
+    float normalThickness = 0.0f;
+    float centerThickness = .8f;
+
+    // Vertical lines
+    for (int x = WIN_WIDTH / 2 % gridSpacing; x < WIN_WIDTH; x += gridSpacing) {
+        float thickness = (x == WIN_WIDTH / 2) ? centerThickness : normalThickness;
+
+        sf::RectangleShape line(sf::Vector2f(WIN_HEIGHT, thickness));
+        line.setFillColor(gridColor);
+        line.setRotation(90.f);
+        line.setPosition(static_cast<float>(x), 0.f);
+
+        window.draw(line);
+    }
+
+    // Horizontal lines
+    for (int y = WIN_HEIGHT / 2 % gridSpacing; y < WIN_HEIGHT; y += gridSpacing) {
+        float thickness = (y == WIN_HEIGHT / 2) ? centerThickness : normalThickness;
+
+        sf::RectangleShape line(sf::Vector2f(WIN_WIDTH, thickness));
+        line.setFillColor(gridColor);
+        line.setPosition(0.f, static_cast<float>(y));
+
+        window.draw(line);
+    }
 }
 
 
@@ -236,22 +268,32 @@ int main() {
             if (event.type == sf::Event::Closed) window.close();
             else if (event.type == sf::Event::KeyPressed) {
                 if (event.key.code == sf::Keyboard::Space) paused = !paused;
-                if (event.key.code == sf::Keyboard::Right) {
+                else if (event.key.code == sf::Keyboard::Right) {
                     if (!paused) paused = true;
                     currentFrame = min(currentFrame + 1, frames.size()-1); 
                 }
-                if (event.key.code == sf::Keyboard::Left) {
+                else if (event.key.code == sf::Keyboard::Left) {
                     if (!paused) paused = true;
                     currentFrame = (currentFrame == 0 ? 0 : currentFrame - 1);
                 }
+                // go to step zero
+                else if (event.key.code == sf::Keyboard::Num0) {
+                    currentFrame = 0;
+                }
                 // restart animation with next genome
-                if (event.key.code == sf::Keyboard::Enter) {
+                else if (event.key.code == sf::Keyboard::Enter) {
                     drawLoadingScreen(window, font);
                     world = readWorld(gen);
                     world.run(NUM_STEPS, true);
                     frames = loadFrames();
                     currentFrame = 0;
                     paused = false;
+                }
+                // set zoom and view to default
+                else if (event.key.code == sf::Keyboard::Escape) {
+                    view = sf::View(sf::FloatRect(0, 0, WIN_WIDTH, WIN_HEIGHT));
+                    view.zoom(DEFAULT_ZOOM);
+                    window.setView(view);
                 }
             } else if (event.type == sf::Event::MouseWheelScrolled) {
                 sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
@@ -274,6 +316,7 @@ int main() {
             " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
         window.clear(BACKGROUND_COLOR);
 
+        drawGrid(window);
         drawFoodSources(window, frames[currentFrame].foodSources);
         drawJunctions(window, frames[currentFrame].junctions);
         drawTubes(window, frames[currentFrame].tubes);
