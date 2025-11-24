@@ -161,6 +161,8 @@ struct World {
 
     GrowthDecisionNet growthDecisionNet;
     FlowDecisionNet flowDecisionNet;
+
+    double food_consumed = 0.0;
     double fitness = 0.0;
     
     World(const Genome& g)
@@ -639,6 +641,7 @@ struct World {
                 FoodSource* fs = junc->foodSource; // keep the pointer
 
                 fs->energy -= FOOD_ENERGY_ABSORB_RATE;
+                food_consumed += FOOD_ENERGY_ABSORB_RATE;
 
                 if (fs->energy <= 0) {
                     // clear all references BEFORE deleting from vector
@@ -655,11 +658,18 @@ struct World {
 
     void calculateFitness() {
         
-        double totalEnergy = 0.0;
-        for (const auto& junc : junctions) {
-            totalEnergy += junc->energy;
-        }
-        fitness = totalEnergy;
+        // total food energy consumed;
+        fitness = food_consumed;
+
+
+        // total cell energy fitness
+        
+        // double totalEnergy = 0.0;
+        // for (const auto& junc : junctions) {
+        //     totalEnergy += junc->energy;
+        // }
+        // fitness = totalEnergy;
+
 
         // energy centrality-based fitness
 
