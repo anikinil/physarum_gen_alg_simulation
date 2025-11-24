@@ -28,7 +28,7 @@ def plot_csv(data_filename, plot_filename, show=False):
     plt.plot(generations, average, label='Average')
     plt.xlabel('Generation')
     plt.ylabel('Score')
-    plt.title(f'Gen: {last_gen})')
+    plt.title(f'Gen: {last_gen}/{last_gen}')
     plt.legend()
     plt.grid(True)
     plt.ylim(bottom=0)
@@ -42,6 +42,6 @@ def plot_csv(data_filename, plot_filename, show=False):
 
 if __name__ == "__main__":
     import sys
-    # pass --show on the command line to display the plot interactively
-    show_flag = '--show' in sys.argv
+    # pass --s on the command line to display the plot interactively
+    show_flag = '--s' in sys.argv
     plot_csv('data/genome_fitness.csv', 'data/plot.png', show=show_flag)

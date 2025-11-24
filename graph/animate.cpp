@@ -57,12 +57,12 @@ void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& f
     for (const auto& food : foodSources) {
         float radius = food.radius;
         sf::CircleShape area(radius);
-        area.setFillColor(sf::Color(100, 190, 0));
+        area.setFillColor(FOOD_SOURCE_COLOR);
         area.setPosition(WIN_WIDTH/2 + food.x - radius, WIN_HEIGHT/2 + food.y - radius);
 
-        sf::CircleShape capacity(sqrt(food.energy/3.14));
+        sf::CircleShape capacity(10.0 * sqrt(food.energy/3.14));
         capacity.setFillColor(sf::Color::Transparent);
-        capacity.setOutlineColor(sf::Color::White);
+        capacity.setOutlineColor(FOOD_SOURCE_CAPACITY_COLOR);
         capacity.setOutlineThickness(0.5);
         capacity.setPosition(WIN_WIDTH/2 + food.x - capacity.getRadius(), WIN_HEIGHT/2 + food.y - capacity.getRadius());
         window.draw(area);
@@ -74,8 +74,8 @@ void drawJunctions(sf::RenderWindow& window, const vector<JunctionVisual>& junct
     for (const auto& junc : junctions) {
 
         int radius = 1 + JUNCTION_RADIUS_FACTOR * sqrt(junc.energy / 3.14); // scale radius with energy
-        sf::Color color = sf::Color(255, 200, 40);
-        if (radius == 1) color = sf::Color(180, 140, 20);
+        sf::Color color = JUNCTION_COLOR;
+        if (radius == 1) color = DEPLETED_JUNCTION_COLOR;
         sf::CircleShape shape(radius);
         shape.setFillColor(color);
         shape.setPosition(WIN_WIDTH/2 + junc.x - radius, WIN_HEIGHT/2 + junc.y - radius);
@@ -97,7 +97,7 @@ void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
         thickLine.setOrigin(0.f, thickness * 0.5f);
         thickLine.setPosition(p1);
         thickLine.setRotation(angle);
-        thickLine.setFillColor(sf::Color(255, 200, 40));
+        thickLine.setFillColor(TUBE_COLOR);
         window.draw(thickLine);
     }
 }
@@ -246,7 +246,7 @@ int main() {
         window.setTitle("Energy: " + std::to_string(totalEnergy) + 
             " | Junctions: " + std::to_string(frames[currentFrame].junctions.size()) +
             " | Frame: " + std::to_string(currentFrame) + "/" + std::to_string(frames.size()-1));
-        window.clear();
+        window.clear(BACKGROUND_COLOR);
 
         drawFoodSources(window, frames[currentFrame].foodSources);
         drawJunctions(window, frames[currentFrame].junctions);
@@ -315,15 +315,21 @@ int main() {
             text.setFillColor(sf::Color::White);
             sf::FloatRect bounds = text.getLocalBounds();
 
-            float tx = mp.x + 12;
-            float ty = mp.y + 12;
+            float boxOffsetX = 20.f;
+            float boxOffsetY = 20.f;
+
+            int textOffsetX = 10;
+            int textOffsetY = 6;
+
+            float tx = mp.x + boxOffsetX;
+            float ty = mp.y + boxOffsetY;
 
             sf::RectangleShape box;
             box.setFillColor(sf::Color(0,0,0,180));
-            box.setSize({bounds.width + 10.f, bounds.height + 10.f});
+            box.setSize({bounds.width + static_cast<float>(2*textOffsetX), bounds.height + static_cast<float>(4*textOffsetY)});
             box.setPosition(tx, ty);
 
-            text.setPosition(tx + 5, ty + 3);
+            text.setPosition(tx + textOffsetX, ty + textOffsetY);
 
             window.draw(box);
             window.draw(text);

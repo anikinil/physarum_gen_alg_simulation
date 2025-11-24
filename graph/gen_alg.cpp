@@ -16,11 +16,9 @@
 
 using namespace std;
 
+
 vector<unique_ptr<World>> generateInitialPopulation() {
     vector<unique_ptr<World>> population;
-
-    cout << "HERE" << endl;
-
 
     for (int i = 0; i < POPULATION_SIZE; i++) {
 
@@ -28,14 +26,9 @@ vector<unique_ptr<World>> generateInitialPopulation() {
         vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
         junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
         auto world = make_unique<World>(Genome());
-        cout << "HERE2" << endl;
         world->placeNewFoodSources(std::move(foodSources));
-        cout << "HERE3" << endl;
         world->placeNewJunctions(std::move(junctions));
-        cout << "HERE4" << endl;
         population.push_back(std::move(world));
-
-        cout << "Created individual " << i << endl;
     }
 
     return population;
@@ -168,7 +161,7 @@ void runGeneticAlgorithm() {
         int count = 0;
         for (const auto& ind : population) {
 
-            cout << "Evaluating individual " << count << endl;
+            cout << "Individual " << count+1 << "/" << POPULATION_SIZE << endl;
             count++;
 
             vector<double> ind_fitnesses;
@@ -193,9 +186,13 @@ void runGeneticAlgorithm() {
                     ind->junctions = std::move(junctions);
                     ind->foodSources = std::move(foodSources);
                 }
+
+                cout << "\033[A\33[2K\r"; // erase try line
             }
             ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() * 0.33); // fitness is the 33rd percentile
             // ind->fitness = *min_element(ind_fitnesses.begin(), ind_fitnesses.end()); // worst fitness
+
+            cout << "\033[A\33[2K\r"; // erase ind line
         }
 
         sortByFitness(population);
@@ -231,7 +228,6 @@ void runGeneticAlgorithm() {
 }
 
 int main() {
-
 
     runGeneticAlgorithm();
 }

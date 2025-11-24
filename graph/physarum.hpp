@@ -17,7 +17,7 @@ const double DEFAULT_JUNCTION_ENERGY = 1.0;
 
 const double GROWING_COST = 0.005;
 const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
-const double PASSIVE_ENERGY_LOSS = 0.01;
+const double PASSIVE_ENERGY_LOSS = 0.02;
 
 const int MAX_TUBES_PER_JUNCTION = 3;
 const double DEFAULT_FLOW_RATE = 0.1;
@@ -27,7 +27,7 @@ const double TUBE_LENGTH = 10.0;
 const double MAX_JUNCTION_ENERGY = 10.0;
 const double MAX_TUBE_FLOW_RATE = 2.0;
 
-const double FOOD_ENERGY_ABSORB_RATE = 5.0;
+const double FOOD_ENERGY_ABSORB_RATE = 0.5;
 
 
 struct Junction;
@@ -447,7 +447,6 @@ struct World {
         updateJunctions();
         updateTubes();
         updateFood();
-        // calculateFitness();
     }
 
     void removeDeadJunctionsAndTubes() {
@@ -620,23 +619,39 @@ struct World {
         }
     }
 
-    void updateFood() {
+    void deleteFoodSource(FoodSource* fs) {
+        foodSources.erase(
+            std::remove_if(foodSources.begin(), foodSources.end(),
+                [&](const std::unique_ptr<FoodSource>& f) {
+                    return f.get() == fs;
+                }),
+                foodSources.end());
+    }
 
+    void updateFood() {
         for (auto& junc : junctions) {
 
             if (junc->isTouchingFoodSource()) {
-                junc->energy += FOOD_ENERGY_ABSORB_RATE; // absorb food energy
-                if (junc->energy > MAX_JUNCTION_ENERGY) {
-                    junc->energy = MAX_JUNCTION_ENERGY; // cap junction energy
-                }
-                junc->foodSource->energy -= FOOD_ENERGY_ABSORB_RATE;
-                if (junc->foodSource->energy < 0) {
-                    // cout << "Food source at (" << junc->foodSource->x << ", " << junc->foodSource->y << ") depleted." << endl;
-                    junc->foodSource = nullptr; // food source depleted
+                junc->energy += FOOD_ENERGY_ABSORB_RATE;
+                if (junc->energy > MAX_JUNCTION_ENERGY)
+                    junc->energy = MAX_JUNCTION_ENERGY;
+
+                FoodSource* fs = junc->foodSource; // keep the pointer
+
+                fs->energy -= FOOD_ENERGY_ABSORB_RATE;
+
+                if (fs->energy <= 0) {
+                    // clear all references BEFORE deleting from vector
+                    for (auto& j : junctions) {
+                        if (j->foodSource == fs)
+                            j->foodSource = nullptr;
+                    }
+                    deleteFoodSource(fs);
                 }
             }
         }
     }
+
 
     void calculateFitness() {
         

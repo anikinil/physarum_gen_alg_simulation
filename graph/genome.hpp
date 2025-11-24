@@ -21,17 +21,12 @@ const vector<pair<int, int>> FLOW_NET_DIMS = {
     // + 5 + 6 + 4 + 2
     // total: 94
 };
-// total genome size: 309
 
 using namespace std;
 
 struct Genome {
     vector<vector<vector<double>>> growNetWeights;
     vector<vector<vector<double>>> flowNetWeights;
-
-    // TODO change structure to:
-    // std::vector<std::vector<std::vector<double>>> growNetWeights, flowNetWeights;
-    // std::vector<std::vector<double>> growNetBiases, flowNetBiases;
 
     Genome() {
         auto addLayer = [&](const std::pair<int,int>& d, 
@@ -50,7 +45,6 @@ struct Genome {
         for (const auto& d : GROW_NET_DIMS) addLayer(d, growNetWeights);
         for (const auto& d : FLOW_NET_DIMS) addLayer(d, flowNetWeights);
     }
-
 
     vector<vector<vector<double>>> getGrowNetWeights() const {
         return growNetWeights;
