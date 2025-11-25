@@ -16,8 +16,8 @@ const double JUNCTION_RADIUS_FACTOR = 3.0;
 const float MIN_TUBE_THICKNESS = 0.5f;
 const int TUBE_THICKNESS_FACTOR = 1;
 
-const float FPS = 120.0f;
-const float DEFAULT_ZOOM = 0.3f;
+const float FPS = 60.0f;
+const float DEFAULT_ZOOM = 0.2f;
 
 
 const int OBJECT_TRANSPARENCY = 90;

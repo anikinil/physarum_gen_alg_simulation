@@ -7,10 +7,10 @@
 using namespace std;
 
 const int NUM_GENERATIONS = 10000;
-const int POPULATION_SIZE = 40;
+const int POPULATION_SIZE = 30;
 const int NUM_TRIES = 9;
 
-const int NUM_STEPS = 400; // -> more over time
+const int NUM_STEPS = 200; // -> more over time
 
 const float ELITE_PROPORTION = 0.3f;
 const float CROSSED_PROPORTION = 0.2f;
@@ -20,7 +20,7 @@ const double MUTATION_STRENGTH = 0.5;
 
 const double INITIAL_ENERGY = MAX_JUNCTION_ENERGY;
 
-const int TOTAL_FOOD_ENERGY_SMALL = 800; // -> more
+const int TOTAL_FOOD_ENERGY_SMALL = 1500;
 const int NUM_FOOD_SOURCES_SMALL = 500;
 const int TOTAL_FOOD_ENERGY_LARGE = 500;
 const int NUM_FOOD_SOURCES_LARGE = 15;
