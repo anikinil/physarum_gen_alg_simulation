@@ -29,6 +29,8 @@ const double MAX_TUBE_FLOW_RATE = 2.0;
 
 const double FOOD_ENERGY_ABSORB_RATE = 0.005;
 
+const double MIN_GROWTH_ANGLE_VARIANCE = 0.2;
+
 struct Junction;
 struct Tube;
 struct FoodSource;
@@ -573,9 +575,13 @@ struct World {
                                             signalHistory);
                
             if (junc->getTotalTubes() < MAX_TUBES_PER_JUNCTION && Random::uniform() < growthDecisionNet.growthProbability && junc->energy > MIN_GROWTH_ENERGY) {
-                growTubeFrom(
-                    *junc,
-                    averageAngleIn + growthDecisionNet.growthAngle + Random::uniform(-growthDecisionNet.angleVariance, growthDecisionNet.angleVariance));
+                double variance = max(growthDecisionNet.angleVariance, MIN_GROWTH_ANGLE_VARIANCE);
+                double angle = 
+                    averageAngleIn + 
+                    growthDecisionNet.growthAngle +
+                    Random::uniform(-variance, variance);
+                
+                growTubeFrom(*junc, angle);
             }
 
             junc->signal = growthDecisionNet.signal;
