@@ -176,6 +176,9 @@ void runGeneticAlgorithm() {
 
                 if (t < NUM_TRIES - 1) {
                     // Reset world for next try
+                    ind->fitness = 0.0;
+                    ind->food_consumed = 0.0;
+
                     ind->junctions.clear();
                     ind->tubes.clear();
                     ind->foodSources.clear();
@@ -189,6 +192,13 @@ void runGeneticAlgorithm() {
 
                 cout << "\033[A\33[2K\r"; // erase try line
             }
+            std::sort(ind_fitnesses.begin(), ind_fitnesses.end(), std::less<double>());
+            // cout << " Individual fitnesses: ";
+            // for (size_t i = 0; i < ind_fitnesses.size(); i++) {
+            //     cout << ind_fitnesses[i];
+            //     if (i < ind_fitnesses.size() - 1) cout << ", ";
+            // }
+            // cout << endl;
             ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() * 0.33); // fitness is the 33rd percentile
             // ind->fitness = *min_element(ind_fitnesses.begin(), ind_fitnesses.end()); // worst fitness
 

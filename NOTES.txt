@@ -24,4 +24,5 @@ Growth:
 -----------------
 Animation:
 -----------------
+- FPS control and display with UP/DOWN keys
 - if junction dead, color of attached tube darker too

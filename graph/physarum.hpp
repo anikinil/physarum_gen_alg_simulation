@@ -15,19 +15,19 @@ using namespace std;
 
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
 
-const double GROWING_COST = 0.001;
+const double GROWING_COST = 0.001; // -> 0.0 ?
 const double MIN_GROWTH_ENERGY = 1.5 * (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
-const double PASSIVE_ENERGY_LOSS = 0.02;
+const double PASSIVE_ENERGY_LOSS = 0.01;
 
 const int MAX_TUBES_PER_JUNCTION = 4;
-const double DEFAULT_FLOW_RATE = 0.1;
+const double DEFAULT_FLOW_RATE = 0.01;
 const double FLOW_RATE_CHANGE_STEP = 0.1;
 const double TUBE_LENGTH = 5.0;
 
 const double MAX_JUNCTION_ENERGY = 10.0;
 const double MAX_TUBE_FLOW_RATE = 2.0;
 
-const double FOOD_ENERGY_ABSORB_RATE = 0.1;
+const double FOOD_ENERGY_ABSORB_RATE = 0.005;
 
 
 struct Junction;
@@ -484,7 +484,7 @@ struct World {
 
         removeDeadJunctionsAndTubes();
 
-        // Remove any dangling TubeInfo references from junctions (tubes that are no longer present)
+        // remove any dangling TubeInfo references from junctions
         auto tubeExists = [&](Tube* t) {
             if (!t) return false;
             for (const auto& ut : tubes) {
@@ -505,6 +505,7 @@ struct World {
         }
 
         size_t existingCount = junctions.size();
+        // cout << "Existing count" << existingCount << endl;
 
         for (size_t i = 0; i < existingCount; ++i) {
 
@@ -665,16 +666,16 @@ struct World {
     void calculateFitness() {
         
         // total food energy consumed;
-        fitness = food_consumed;
+        // fitness = food_consumed;
 
 
         // total cell energy fitness
 
-        // double totalEnergy = 0.0;
-        // for (const auto& junc : junctions) {
-        //     totalEnergy += junc->energy;
-        // }
-        // fitness = totalEnergy;
+        double totalEnergy = 0.0;
+        for (const auto& junc : junctions) {
+            totalEnergy += junc->energy;
+        }
+        fitness = totalEnergy;
 
 
         // energy centrality-based fitness

@@ -162,7 +162,7 @@ World readWorld(int gen) {
 
     ifstream file("data/genome_fitness.csv");
     if (!file) throw runtime_error("Could not open file");
-
+    
     string line;
     getline(file, line); // skip header
 
@@ -170,6 +170,7 @@ World readWorld(int gen) {
     while (getline(file, line)) {
         lastLine = line;
         if (gen != -1) {
+            gen -= 1; // adjust for zero indexing
             string genStr = line.substr(0, line.find(';'));
             if (stoi(genStr) == gen) {
                 selectedLine = line;
@@ -231,8 +232,14 @@ World readWorld(int gen) {
 
 
 
-int main() {
+int main(int argc, char* argv[]) {
+
     int gen = -1;
+    // read gen from command line argument
+    if (argc > 1) {
+        gen = std::stoi(argv[1]);
+    }
+
     World world = readWorld(gen);
     world.run(NUM_STEPS, true);
     vector<Frame> frames = loadFrames();
