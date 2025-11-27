@@ -13,23 +13,23 @@ using namespace std;
 
 #include "decision.hpp"
 
-const double DEFAULT_JUNCTION_ENERGY = 1.0; // -> less
+const double DEFAULT_JUNCTION_ENERGY = 0.5; // -> less
 
-const double GROWING_COST = 0.0; // previously: 0.001
-const double MIN_GROWTH_ENERGY = (DEFAULT_JUNCTION_ENERGY + GROWING_COST);
-const double PASSIVE_ENERGY_LOSS = 0.1;
+const double GROWTH_COST = 0.0;
+const double MIN_GROWTH_ENERGY = (DEFAULT_JUNCTION_ENERGY + GROWTH_COST);
+const double PASSIVE_ENERGY_LOSS = 0.02;
 
 const int MAX_TUBES_PER_JUNCTION = 4;
 const double DEFAULT_FLOW_RATE = 0.1;
 const double FLOW_RATE_CHANGE_STEP = 0.01;
-const double TUBE_LENGTH = 5.0;
+const double TUBE_LENGTH = 6.0;
 
-const double MAX_JUNCTION_ENERGY = 10.0;
+const double MAX_JUNCTION_ENERGY = 20.0;
 const double MAX_TUBE_FLOW_RATE = 2.0;
 
-const double FOOD_ENERGY_ABSORB_RATE = 0.005;
+const double FOOD_ENERGY_ABSORB_RATE = 0.5;
 
-const double MIN_GROWTH_ANGLE_VARIANCE = 0.2;
+const double MIN_GROWTH_ANGLE_VARIANCE = 0.3;
 
 struct Junction;
 struct Tube;
@@ -303,7 +303,7 @@ struct World {
         }
 
         from.energy -= DEFAULT_JUNCTION_ENERGY; // energy passed to new junction
-        from.energy -= GROWING_COST; // cost of growing
+        from.energy -= GROWTH_COST; // cost of growing
 
         // prevent noise
         if (from.energy < 1e-6) from.energy = 0.0;    
@@ -587,7 +587,7 @@ struct World {
             junc->signal = growthDecisionNet.signal;
 
             // passive energy loss
-            junc->energy *= 1 - PASSIVE_ENERGY_LOSS;
+            junc->energy -= PASSIVE_ENERGY_LOSS;
             // junc->energy -= PASSIVE_ENERGY_LOSS/junc->energy;
             if (junc->energy < 1e-6) junc->energy = 0.0;
         }        
@@ -643,22 +643,27 @@ struct World {
         for (auto& junc : junctions) {
 
             if (junc->isTouchingFoodSource()) {
-                junc->energy += FOOD_ENERGY_ABSORB_RATE;
-                if (junc->energy > MAX_JUNCTION_ENERGY)
-                    junc->energy = MAX_JUNCTION_ENERGY;
+                if (junc->energy == MAX_JUNCTION_ENERGY)
+                    continue;
 
                 FoodSource* fs = junc->foodSource; // keep the pointer
 
                 fs->energy -= FOOD_ENERGY_ABSORB_RATE;
                 food_consumed += FOOD_ENERGY_ABSORB_RATE;
-
+                
                 if (fs->energy <= 0) {
                     // clear all references BEFORE deleting from vector
                     for (auto& j : junctions) {
                         if (j->foodSource == fs)
-                            j->foodSource = nullptr;
+                        j->foodSource = nullptr;
                     }
                     deleteFoodSource(fs);
+                }
+                
+                junc->energy += FOOD_ENERGY_ABSORB_RATE;
+                
+                if (junc-> energy > MAX_JUNCTION_ENERGY) {
+                    junc->energy = MAX_JUNCTION_ENERGY;
                 }
             }
         }

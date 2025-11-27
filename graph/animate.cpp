@@ -240,8 +240,10 @@ int main(int argc, char* argv[]) {
         gen = std::stoi(argv[1]);
     }
 
+    int numSteps = NUM_STEPS * 5;
+
     World world = readWorld(gen);
-    world.run(NUM_STEPS, true);
+    world.run(numSteps, true);
     vector<Frame> frames = loadFrames();
 
     size_t currentFrame = 0;
@@ -291,7 +293,7 @@ int main(int argc, char* argv[]) {
                 else if (event.key.code == sf::Keyboard::Enter) {
                     drawLoadingScreen(window, font);
                     world = readWorld(gen);
-                    world.run(NUM_STEPS, true);
+                    world.run(numSteps, true);
                     frames = loadFrames();
                     currentFrame = 0;
                     paused = false;

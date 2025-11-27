@@ -64,5 +64,5 @@ def plot_csv(data_filename, plot_filename, show=False):
 if __name__ == "__main__":
     import sys
     # pass --s on the command line to display the plot interactively
-    show_flag = '--s' in sys.argv
+    show_flag = '-s' in sys.argv
     plot_csv('data/genome_fitness.csv', 'data/plot.png', show=show_flag)

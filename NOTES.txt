@@ -26,5 +26,13 @@ Animation:
 -----------------
 Other:
 -----------------
-- set min growth angle to avoid unnatural sharp angles
+- set min growth angle to avoid unnatural sharp angles (?)
 - set minimal growth angle variance to avoid perfectly straight growths (more realistic biologically)
+
+
+
+=================
+Ideas:
+=================
+
+- use different decision net for each output node (with identical inputs) and inherit them seperately from parents on crossover

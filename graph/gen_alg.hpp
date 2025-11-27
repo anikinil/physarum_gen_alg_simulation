@@ -8,20 +8,20 @@ using namespace std;
 
 const int NUM_GENERATIONS = 10000;
 const int POPULATION_SIZE = 30;
-const int NUM_TRIES = 9;
+const int NUM_TRIES = 5;
 
-const int NUM_STEPS = 600; // -> more over time
+const int NUM_STEPS = 200; // -> more over time
 
-const float ELITE_PROPORTION = 0.3f;
+const float ELITE_PROPORTION = 0.2f;
 const float CROSSED_PROPORTION = 0.2f;
 
-const double DEFAULT_MUTATION_RATE = 0.2;
-const double MUTATION_STRENGTH = 0.5;
+const double DEFAULT_MUTATION_RATE = 0.3;
+const double MUTATION_STRENGTH = 1.0;
 
 const double INITIAL_ENERGY = MAX_JUNCTION_ENERGY;
 
-const int TOTAL_FOOD_ENERGY_SMALL = 1500;
-const int NUM_FOOD_SOURCES_SMALL = 500;
+const int TOTAL_FOOD_ENERGY_SMALL = 5000;
+const int NUM_FOOD_SOURCES_SMALL = 1500;
 const int TOTAL_FOOD_ENERGY_LARGE = 500;
 const int NUM_FOOD_SOURCES_LARGE = 15;
 
@@ -59,9 +59,8 @@ vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
     foodSources.insert(foodSources.end(),
                        std::make_move_iterator(largeSources.begin()),
                        std::make_move_iterator(largeSources.end()));
-    // central food source
     double energy = FOOD_ENERGY_ABSORB_RATE * NUM_STEPS;
-    double radius = sqrt(energy/3.14);
+    double radius = TUBE_LENGTH - 1.0;
     foodSources.push_back(make_unique<FoodSource>(FoodSource{0.0, 0.0, radius, energy}));
     return foodSources;
 }
