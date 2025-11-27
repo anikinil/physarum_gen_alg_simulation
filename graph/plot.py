@@ -46,7 +46,7 @@ def plot_csv(data_filename, plot_filename, show=False):
     
     plt.xticks(ticks, color=fg_color)
     plt.xlabel('Generation', color=fg_color)
-    plt.ylabel('Score', color=fg_color)
+    plt.ylabel('Fitness', color=fg_color)
     plt.title(f'Gen: {last_gen}', color=fg_color)
     plt.legend(facecolor=bg_color, edgecolor=fg_color, labelcolor=fg_color)
     plt.grid(True, color=fg_color, alpha=0.3)

@@ -194,8 +194,8 @@ void runGeneticAlgorithm() {
             }
             std::sort(ind_fitnesses.begin(), ind_fitnesses.end(), std::less<double>());
 
-            ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() * 0.33); // fitness is the 33rd percentile
-            // ind->fitness = std::accumulate(ind_fitnesses.begin(), ind_fitnesses.end(), 0.0) / ind_fitnesses.size(); // fitness is the average
+            // ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() * 0.33); // fitness is the 33rd percentile
+            ind->fitness = std::accumulate(ind_fitnesses.begin(), ind_fitnesses.end(), 0.0) / NUM_TRIES; // fitness is the average
 
             cout << "\033[A\33[2K\r"; // erase ind line
         }
