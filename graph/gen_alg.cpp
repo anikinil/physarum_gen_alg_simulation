@@ -154,23 +154,31 @@ void runGeneticAlgorithm() {
 
         auto gen_start = std::chrono::high_resolution_clock::now();
 
-        cout << "-----------------------------------" << endl;
+        cout << "-------------------------------------" << endl;
         cout << "Generation " << gen+1 << "/" << NUM_GENERATIONS << endl;
-        cout << "-----------------------------------" << endl;
+        cout << "-------------------------------------" << endl;
         
         int count = 0;
         for (const auto& ind : population) {
 
-            cout << "Individual " << count+1 << "/" << POPULATION_SIZE << endl;
+            // cout << "Individual " << count+1 << "/" << POPULATION_SIZE << endl;
+
+            // progress bar
+            string progBar = "[";
             count++;
+
+            for (int i = 0; i < 30; i++) {
+                if (i < (static_cast<int>((static_cast<double>(count) / POPULATION_SIZE) * 30))) progBar += ">";
+                else progBar += " ";
+            }
 
             vector<double> ind_fitnesses;
             
             for (int t = 0; t < NUM_TRIES; t++) {
 
-                cout << " Try " << t+1 << "/" << NUM_TRIES << endl;
+                string progText = "Ind " + to_string(count) + "/" + to_string(POPULATION_SIZE) + " | Try " + to_string(t+1) + "/" + to_string(NUM_TRIES);
 
-                ind->run(NUM_STEPS + gen, false);
+                ind->run(NUM_STEPS, false);
                 ind->calculateFitness();
                 ind_fitnesses.push_back(ind->fitness);
 
@@ -190,15 +198,19 @@ void runGeneticAlgorithm() {
                     ind->foodSources = std::move(foodSources);
                 }
 
-                cout << "\033[A\33[2K\r"; // erase try line
+                cout << progText << "\n" << progBar << "] " << static_cast<int>(((static_cast<double>(count) / POPULATION_SIZE) * 100)) << "%\n";
+
+                cout << "\033[A\033[A";
             }
+
             std::sort(ind_fitnesses.begin(), ind_fitnesses.end(), std::less<double>());
 
             // ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() * 0.33); // fitness is the 33rd percentile
             ind->fitness = std::accumulate(ind_fitnesses.begin(), ind_fitnesses.end(), 0.0) / NUM_TRIES; // fitness is the average
-
-            cout << "\033[A\33[2K\r"; // erase ind line
         }
+
+        cout << "\033[A\033[A\033[2K\033[1G";
+
 
         sortByFitness(population);
         
@@ -210,14 +222,14 @@ void runGeneticAlgorithm() {
         // plot
         system("python3 plot.py");
 
-        cout << "Population sorted by fitness:" << endl;
+        cout << "Population fitness:" << endl;
         for (size_t i = 0; i < population.size(); i++) {
             cout << " " << population[i]->fitness;
             if (i < population.size() - 1) cout << ", ";
         }
         cout << endl;
 
-        cout << "-----------------------------------" << endl;
+        cout << "-------------------------------------" << endl;
         cout << "Best fitness: " << bestFitness << endl;
         cout << "Average fitness: " << averageFitness << endl;
 

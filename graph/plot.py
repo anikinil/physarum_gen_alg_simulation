@@ -1,6 +1,7 @@
 import csv
 import os
 import matplotlib as mpl
+from matplotlib.ticker import MaxNLocator
 
 def plot_csv(data_filename, plot_filename, show=False):
     
@@ -38,13 +39,16 @@ def plot_csv(data_filename, plot_filename, show=False):
     ax.spines['top'].set_color(fg_color)
     ax.spines['left'].set_color(fg_color)
     ax.spines['right'].set_color(fg_color)
+    
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    
+    if last_gen == 1:
+        ticks = [1]
+        plt.xticks(ticks, color=fg_color)
 
     plt.plot(generations, best, label='Best', color=best_color, marker='o')
     plt.plot(generations, average, label='Average', color=avg_color, marker='o')
     
-    ticks = list(range(1, last_gen+1, max(1, last_gen//10)))
-    
-    plt.xticks(ticks, color=fg_color)
     plt.xlabel('Generation', color=fg_color)
     plt.ylabel('Fitness', color=fg_color)
     plt.title(f'Gen: {last_gen}', color=fg_color)

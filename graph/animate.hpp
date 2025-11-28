@@ -30,6 +30,8 @@ const sf::Color TUBE_COLOR(255, 200, 40);
 const sf::Color FOOD_SOURCE_COLOR(203, 71, 68, OBJECT_TRANSPARENCY);
 const sf::Color FOOD_SOURCE_CAPACITY_COLOR(255, 255, 255, OBJECT_TRANSPARENCY);
 
+const float TUBE_THICKNESS = 2.0f;
+
 
 struct JunctionVisual {
     double x;

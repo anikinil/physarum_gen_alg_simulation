@@ -13,16 +13,16 @@ using namespace std;
 
 #include "decision.hpp"
 
-const double DEFAULT_JUNCTION_ENERGY = 0.5; // -> less
 
-const double GROWTH_COST = 0.0;
+const double GROWTH_COST = 2.0;
+const double DEFAULT_JUNCTION_ENERGY = 0.8 * GROWTH_COST;
 const double MIN_GROWTH_ENERGY = (DEFAULT_JUNCTION_ENERGY + GROWTH_COST);
-const double PASSIVE_ENERGY_LOSS = 0.02;
+const double PASSIVE_ENERGY_LOSS = 0.01;
 
 const int MAX_TUBES_PER_JUNCTION = 4;
 const double DEFAULT_FLOW_RATE = 0.1;
-const double FLOW_RATE_CHANGE_STEP = 0.01;
-const double TUBE_LENGTH = 6.0;
+const double FLOW_RATE_CHANGE_STEP = 0.02;
+const double TUBE_LENGTH = 15.0;
 
 const double MAX_JUNCTION_ENERGY = 20.0;
 const double MAX_TUBE_FLOW_RATE = 2.0;
@@ -587,7 +587,7 @@ struct World {
             junc->signal = growthDecisionNet.signal;
 
             // passive energy loss
-            junc->energy -= PASSIVE_ENERGY_LOSS;
+            junc->energy *= 1 - PASSIVE_ENERGY_LOSS;
             // junc->energy -= PASSIVE_ENERGY_LOSS/junc->energy;
             if (junc->energy < 1e-6) junc->energy = 0.0;
         }        
@@ -630,43 +630,83 @@ struct World {
         }
     }
 
-    void deleteFoodSource(FoodSource* fs) {
+    // void deleteFoodSource(FoodSource* fs) {
+    //     foodSources.erase(
+    //         std::remove_if(foodSources.begin(), foodSources.end(),
+    //             [&](const std::unique_ptr<FoodSource>& f) {
+    //                 return f.get() == fs;
+    //             }),
+    //             foodSources.end());
+    // }
+
+    void deleteDepleetedFoodSources() {
+        // remove food sources with energy <= 0
         foodSources.erase(
             std::remove_if(foodSources.begin(), foodSources.end(),
-                [&](const std::unique_ptr<FoodSource>& f) {
-                    return f.get() == fs;
+                [](const std::unique_ptr<FoodSource>& fs) {
+                    return fs->energy <= 1e-6;
                 }),
                 foodSources.end());
     }
 
     void updateFood() {
-        for (auto& junc : junctions) {
 
-            if (junc->isTouchingFoodSource()) {
-                if (junc->energy == MAX_JUNCTION_ENERGY)
-                    continue;
+        for (auto& foodSource : foodSources) {
+            
+            for (auto& junc : junctions) {
 
-                FoodSource* fs = junc->foodSource; // keep the pointer
+                if (junc->foodSource == foodSource.get()) {
+                    if (junc->energy == MAX_JUNCTION_ENERGY)
+                        continue;
 
-                fs->energy -= FOOD_ENERGY_ABSORB_RATE;
-                food_consumed += FOOD_ENERGY_ABSORB_RATE;
-                
-                if (fs->energy <= 0) {
-                    // clear all references BEFORE deleting from vector
-                    for (auto& j : junctions) {
-                        if (j->foodSource == fs)
-                        j->foodSource = nullptr;
+                    FoodSource* fs = junc->foodSource; // keep the pointer
+
+                    fs->energy -= FOOD_ENERGY_ABSORB_RATE;
+                    food_consumed += FOOD_ENERGY_ABSORB_RATE;
+
+                    
+                    junc->energy += FOOD_ENERGY_ABSORB_RATE;
+
+                    
+                    if (junc-> energy > MAX_JUNCTION_ENERGY) {
+                        junc->energy = MAX_JUNCTION_ENERGY;
                     }
-                    deleteFoodSource(fs);
-                }
-                
-                junc->energy += FOOD_ENERGY_ABSORB_RATE;
-                
-                if (junc-> energy > MAX_JUNCTION_ENERGY) {
-                    junc->energy = MAX_JUNCTION_ENERGY;
+
+                    // only one junction can feed on foodsource -> go to next food source
+                    break;
                 }
             }
         }
+
+        deleteDepleetedFoodSources();
+
+        // for (auto& junc : junctions) {
+
+        //     if (junc->isTouchingFoodSource()) {
+        //         if (junc->energy == MAX_JUNCTION_ENERGY)
+        //             continue;
+
+        //         FoodSource* fs = junc->foodSource; // keep the pointer
+
+        //         fs->energy -= FOOD_ENERGY_ABSORB_RATE;
+        //         food_consumed += FOOD_ENERGY_ABSORB_RATE;
+                
+        //         if (fs->energy <= 0) {
+        //             // clear all references BEFORE deleting from vector
+        //             for (auto& j : junctions) {
+        //                 if (j->foodSource == fs)
+        //                 j->foodSource = nullptr;
+        //             }
+        //             deleteFoodSource(fs);
+        //         }
+                
+        //         junc->energy += FOOD_ENERGY_ABSORB_RATE;
+                
+        //         if (junc-> energy > MAX_JUNCTION_ENERGY) {
+        //             junc->energy = MAX_JUNCTION_ENERGY;
+        //         }
+        //     }
+        // }
     }
 
     void updateFitness() {
