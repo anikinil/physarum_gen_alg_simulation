@@ -14,20 +14,20 @@ using namespace std;
 #include "decision.hpp"
 
 
-const double GROWTH_COST = 2.0;
-const double DEFAULT_JUNCTION_ENERGY = 0.8 * GROWTH_COST;
+const double GROWTH_COST = 1.5;
+const double DEFAULT_JUNCTION_ENERGY = 1.0;
 const double MIN_GROWTH_ENERGY = (DEFAULT_JUNCTION_ENERGY + GROWTH_COST);
 const double PASSIVE_ENERGY_LOSS = 0.01;
 
 const int MAX_TUBES_PER_JUNCTION = 4;
-const double DEFAULT_FLOW_RATE = 0.1;
-const double FLOW_RATE_CHANGE_STEP = 0.02;
-const double TUBE_LENGTH = 15.0;
+const double DEFAULT_FLOW_RATE = 0.4;
+const double FLOW_RATE_CHANGE_STEP = 0.05;
+const double TUBE_LENGTH = 20.0;
 
 const double MAX_JUNCTION_ENERGY = 20.0;
 const double MAX_TUBE_FLOW_RATE = 2.0;
 
-const double FOOD_ENERGY_ABSORB_RATE = 0.5;
+const double FOOD_ENERGY_ABSORB_RATE = 0.1;
 
 const double MIN_GROWTH_ANGLE_VARIANCE = 0.3;
 
@@ -654,6 +654,7 @@ struct World {
         for (auto& foodSource : foodSources) {
             
             for (auto& junc : junctions) {
+                
 
                 if (junc->foodSource == foodSource.get()) {
                     if (junc->energy == MAX_JUNCTION_ENERGY)

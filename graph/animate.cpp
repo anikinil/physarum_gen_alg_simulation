@@ -226,6 +226,9 @@ int main(int argc, char* argv[]) {
                 else if (event.key.code == sf::Keyboard::Num0) {
                     currentFrame = 0;
                 }
+                else if (event.key.code == sf::Keyboard::Num9) {
+                    currentFrame = frames.size() - 1;
+                }
                 // restart animation with next genome
                 else if (event.key.code == sf::Keyboard::Enter) {
                     drawLoadingScreen(window, font);

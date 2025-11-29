@@ -110,10 +110,9 @@ vector<unique_ptr<World>> createNextGeneration(vector<unique_ptr<World>>& curren
         int parent1Idx = Random::randint(0, numElite - 1);
         int parent2Idx = Random::randint(0, numElite - 1);
         Genome childGenome;
-        Genome test = currentPopulation[parent1Idx]->getGenome();
-        // crossOverGenomes(currentPopulation[parent1Idx]->getGenome(),
-                        //  currentPopulation[parent2Idx]->getGenome(),
-                        //  childGenome);
+        crossOverGenomes(currentPopulation[parent1Idx]->getGenome(),
+                         currentPopulation[parent2Idx]->getGenome(),
+                         childGenome);
 
         // Mutate child genome
         childGenome.mutate(DEFAULT_MUTATION_RATE, MUTATION_STRENGTH);
@@ -280,7 +279,7 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         int gen = stoi(argv[1]);
         Genome genome = readGenome(gen);
-        deleteGenomeRecordsAfter(gen);
+        if (gen != -1) deleteGenomeRecordsAfter(gen);
         runGeneticAlgorithm(&genome, gen);
     } else {
         runGeneticAlgorithm();
