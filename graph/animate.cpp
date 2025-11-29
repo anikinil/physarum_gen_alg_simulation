@@ -160,70 +160,10 @@ void drawGrid(sf::RenderWindow& window) {
 
 World readWorld(int gen) {
 
-    ifstream file("data/genome_fitness.csv");
-    if (!file) throw runtime_error("Could not open file");
-    
-    string line;
-    getline(file, line); // skip header
-
-    string selectedLine, lastLine;
-    while (getline(file, line)) {
-        lastLine = line;
-        if (gen != -1) {
-            gen -= 1; // adjust for zero indexing
-            string genStr = line.substr(0, line.find(';'));
-            if (stoi(genStr) == gen) {
-                selectedLine = line;
-                break;
-            }
-        }
-    }
-
-    if (selectedLine.empty()) selectedLine = lastLine;
-
-    stringstream ss(selectedLine);
-    string genStr, bestFitnessStr, averageFitnessStr, genomeStr;
-    getline(ss, genStr, ';');
-    getline(ss, bestFitnessStr, ';');
-    getline(ss, averageFitnessStr, ';');
-    getline(ss, genomeStr, ';');
-
-    vector<double> weights;
-    int weights_size = 0;
-    for (const auto& layer_dim : GROW_NET_DIMS) {
-        int in = layer_dim.first;
-        int out = layer_dim.second;
-        weights_size += in * out + out;
-    }
-    for (const auto& layer_dim : FLOW_NET_DIMS) {
-        int in = layer_dim.first;
-        int out = layer_dim.second;
-        weights_size += in * out + out;
-    }
-    weights.reserve(weights_size);
-    stringstream rulesStream(genomeStr);
-    for (string token; getline(rulesStream, token, ' ');) {
-        weights.push_back(static_cast<double>(stod(token)));
-    }
-
-    int grow_net_size = 0;
-    for (const auto& layer_dim : GROW_NET_DIMS) {
-        int in = layer_dim.first;
-        int out = layer_dim.second;
-        grow_net_size += in * out + out;
-    }
-
-    vector<double> weights_a(weights.begin(), weights.begin() + grow_net_size);
-    vector<double> weights_b;
-    weights_b.assign(weights.begin() + grow_net_size, weights.end());
-
-    Genome genome;
-    genome.setGrowNetWights(weights_a);
-    genome.setFlowNetWights(weights_b);
-
     vector<unique_ptr<Junction>> junctions;
     junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
     vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
+    Genome genome = readGenome(gen);
     World world(genome);
     world.placeNewFoodSources(std::move(foodSources));
     world.placeNewJunctions(std::move(junctions));
@@ -235,7 +175,6 @@ World readWorld(int gen) {
 int main(int argc, char* argv[]) {
 
     int gen = -1;
-    // read gen from command line argument
     if (argc > 1) {
         gen = std::stoi(argv[1]);
     }

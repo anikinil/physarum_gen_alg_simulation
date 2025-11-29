@@ -727,7 +727,6 @@ struct World {
         }
         fitness = totalEnergy;
 
-
         // energy centrality-based fitness
 
         // double centralityScore = 0.0;

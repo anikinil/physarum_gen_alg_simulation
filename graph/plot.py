@@ -42,8 +42,8 @@ def plot_csv(data_filename, plot_filename, show=False):
     
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     
-    if last_gen == 1:
-        ticks = [1]
+    if len(generations) == 1:
+        ticks = [generations[0]]
         plt.xticks(ticks, color=fg_color)
 
     plt.plot(generations, best, label='Best', color=best_color, marker='o')

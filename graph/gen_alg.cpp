@@ -17,10 +17,23 @@
 using namespace std;
 
 
-vector<unique_ptr<World>> generateInitialPopulation() {
+vector<unique_ptr<World>> generateInitialPopulation(const Genome* initialGenome = nullptr) {
     vector<unique_ptr<World>> population;
 
-    for (int i = 0; i < POPULATION_SIZE; i++) {
+    int pop_size = POPULATION_SIZE;
+
+    if (initialGenome != nullptr) {
+        pop_size -= 1;
+        vector<unique_ptr<Junction>> junctions;
+        vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
+        junctions.push_back(make_unique<Junction>(Junction{0.0, 0.0, INITIAL_ENERGY}));
+        auto world = make_unique<World>(*initialGenome);
+        world->placeNewFoodSources(std::move(foodSources));
+        world->placeNewJunctions(std::move(junctions));
+        population.push_back(std::move(world));
+    }
+
+    for (int i = 0; i < pop_size; i++) {
 
         vector<unique_ptr<Junction>> junctions;
         vector<unique_ptr<FoodSource>> foodSources = createRandomizedFoodSources();
@@ -144,13 +157,23 @@ void printETA(int currentGeneration, const vector<chrono::duration<double>>& gen
     cout << "Estimated time remaining: " << hours << " hours " << minutes << " minutes" << endl;
 }
 
-void runGeneticAlgorithm() {
-    vector<std::unique_ptr<World>> population = generateInitialPopulation();
+void runGeneticAlgorithm(Genome* initialGenome = nullptr, int startGen = 0) {
+
+    vector<std::unique_ptr<World>> population = generateInitialPopulation(initialGenome);
+
+    if (startGen == -1) {
+        startGen = getLastGenerationNumber() + 1;
+        cout << "Starting from last generation: " << startGen << endl;
+    } else if (startGen == 0) {
+        cout << "Starting from scratch." << endl;
+    }else {
+        cout << "Starting from generation: " << startGen << endl;
+    }
 
     // For timing
     vector<chrono::duration<double>> gen_durations;
 
-    for (int gen = 0; gen < NUM_GENERATIONS; gen++) {
+    for (int gen = startGen; gen < NUM_GENERATIONS; gen++) {
 
         auto gen_start = std::chrono::high_resolution_clock::now();
 
@@ -198,18 +221,25 @@ void runGeneticAlgorithm() {
                     ind->foodSources = std::move(foodSources);
                 }
 
-                cout << progText << "\n" << progBar << "] " << static_cast<int>(((static_cast<double>(count) / POPULATION_SIZE) * 100)) << "%\n";
+                cout << progText << "\n";
+                cout << progBar << "] " << static_cast<int>((static_cast<double>(count) / POPULATION_SIZE) * 100) << "%\n";
 
-                cout << "\033[A\033[A";
+                cout << "\033[2A";
+
             }
 
             std::sort(ind_fitnesses.begin(), ind_fitnesses.end(), std::less<double>());
 
             // ind->fitness = *std::next(ind_fitnesses.begin(), ind_fitnesses.size() * 0.33); // fitness is the 33rd percentile
             ind->fitness = std::accumulate(ind_fitnesses.begin(), ind_fitnesses.end(), 0.0) / NUM_TRIES; // fitness is the average
+        
+            cout << "\033[2K\r";           // clear current line
+            cout << "\033[1B\033[2K\r";    // move down, clear next line
+            cout << "\033[1A";             // restore cursor position
+
         }
 
-        cout << "\033[A\033[A\033[2K\033[1G";
+        // cout << "\033[A\033[A\033[2K\033[1G";
 
 
         sortByFitness(population);
@@ -244,7 +274,15 @@ void runGeneticAlgorithm() {
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
 
-    runGeneticAlgorithm();
+    // load genome by generation number
+    if (argc > 1) {
+        int gen = stoi(argv[1]);
+        Genome genome = readGenome(gen);
+        deleteGenomeRecordsAfter(gen);
+        runGeneticAlgorithm(&genome, gen);
+    } else {
+        runGeneticAlgorithm();
+    }
 }
