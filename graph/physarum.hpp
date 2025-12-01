@@ -28,14 +28,12 @@ const double FLOW_RATE_CHANGE_STEP = 0.01 * MAX_JUNCTION_ENERGY;
 const double MAX_TUBE_FLOW_RATE = 0.3 * MAX_JUNCTION_ENERGY;
 const double MIN_TUBE_FLOW_RATE = 0.01 * MAX_JUNCTION_ENERGY;
 
-
 const double MIN_GROWTH_ANGLE_VARIANCE = 0.05 * M_PI * 2;
 const double MIN_GROWTH_ANGLE = 0.0 * M_PI * 2;
 
 struct Junction;
 struct Tube;
 struct FoodSource;
-
 
 struct Tube {
 
@@ -453,99 +451,24 @@ struct World {
         updateFitness();
     }
 
-    // void removeDeadJunctionsAndTubes() {
-    //     // 1. Collect pointers to dead junctions
-    //     std::vector<Junction*> dead;
-    //     for (auto& j : junctions)
-    //     if (j->energy <= 0) {
-    //         dead.push_back(j.get());
-    //     }
-        
-    //     // 2. Remove tubes connected to dead junctions
-    //     tubes.erase(
-    //         std::remove_if(tubes.begin(), tubes.end(),
-    //             [&](const std::unique_ptr<Tube>& t) {
-    //                 return std::find(dead.begin(), dead.end(), t->fromJunction) != dead.end() ||
-    //                     std::find(dead.begin(), dead.end(), t->toJunction) != dead.end();
-    //                 }),
-    //                 tubes.end());
-
-    //     // 3. Remove the dead junctions themselves
-    //     junctions.erase(
-    //         std::remove_if(junctions.begin(), junctions.end(),
-    //             [](const std::unique_ptr<Junction>& j) {
-    //                 return j->energy <= 0;
-    //             }),
-    //             junctions.end());
-    // }
-
     void updateJunctions() {
 
-        // removeDeadJunctionsAndTubes();
-
-        // remove any dangling TubeInfo references from junctions
-        // auto tubeExists = [&](Tube* t) {
-        //     if (!t) return false;
-        //     for (const auto& ut : tubes) {
-        //         if (ut.get() == t) return true;
-        //     }
-        //     return false;
-        // };
-
-        // for (auto& j : junctions) {
-        //     auto& in = j->inTubes;
-        //     in.erase(std::remove_if(in.begin(), in.end(),
-        //                 [&](const Junction::TubeInfo& ti) { return !tubeExists(ti.tube); }),
-        //              in.end());
-        //     auto& out = j->outTubes;
-        //     out.erase(std::remove_if(out.begin(), out.end(),
-        //                 [&](const Junction::TubeInfo& ti) { return !tubeExists(ti.tube); }),
-        //               out.end());
-        // }
-
         size_t existingCount = junctions.size();
-        // cout << "Existing count" << existingCount << endl;
 
         for (size_t i = 0; i < existingCount; ++i) {
 
-            // if (i >= junctions.size()) break;
             Junction* junc = junctions[i].get();
-            // if (!junc) continue;
 
-            // handle energy movement
-
-            // incoming tubes
-            // for (auto& inTubeInfo : junc->inTubes) {
-            //     Tube* tube = inTubeInfo.tube;
-            //     if (!tube || !tube->fromJunction) continue; // guard against dangling pointers
-            //     double energyAmount = tube->fromJunction->energy * tube->flowRate;
-            //     // if (energyAmount > tube->fromJunction->energy) {
-            //     //     energyAmount = tube->fromJunction->energy; // limit flow by available energy
-            //     // }
-            //     tube->fromJunction->energy -= energyAmount;
-            //     junc->energy += energyAmount;
-            //     junc->saveSignal(tube->fromJunction->signal);
-            //     cout << "Junction " << junc->x << ", " << junc->y << " saved signal " << tube->fromJunction->signal << " from incoming tube." << endl;
-
-            //     if (junc->energy > MAX_JUNCTION_ENERGY) {
-            //         junc->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
-            //     }
-            // }
             // outgoing tubes
             if (junc->energy <= MIN_JUNCTION_ENERGY) continue; // depleted junctions can't send energy or grow
             for (auto& outTubeInfo : junc->outTubes) {
                 Tube* tube = outTubeInfo.tube;
 
                 double energyAmount = junc->energy * tube->flowRate;
-                // if (energyAmount > junc->energy) {
-                //     energyAmount = junc->energy; // limit flow by available energy
-                // }
-
 
                 junc->energy -= energyAmount;
                 tube->toJunction->energy += energyAmount;
                 tube->toJunction->saveSignal(junc->signal);
-                // cout << "Junction " << tube->toJunction->x << ", " << tube->toJunction->y << " saved signal " << junc->signal << " from outgoing tube." << endl;
 
                 tube->toJunction->energy = min(tube->toJunction->energy, MAX_JUNCTION_ENERGY);
                 junc->energy = max(junc->energy, MIN_JUNCTION_ENERGY);
@@ -558,7 +481,6 @@ struct World {
             double averageAngleIn = junc->averageAngleInTubes();
             double averageAngleOut = junc->averageAngleOutTubes();
             double energy = junc->energy  / MAX_JUNCTION_ENERGY; // normalize energy input
-            // cout << "Junction energy: " << energy << endl;
             bool touchingFoodSource = junc->isTouchingFoodSource();
             deque<int> signalHistory = junc->signalHistory;
             
@@ -583,10 +505,7 @@ struct World {
             }
 
             junc->signal = growthDecisionNet.signal;
-
-            // junc->energy -= PASSIVE_ENERGY_LOSS / junc->energy;
             junc->energy -= PASSIVE_ENERGY_LOSS;
-
             junc->energy = max(junc->energy, MIN_JUNCTION_ENERGY);
         }        
     }
@@ -626,15 +545,6 @@ struct World {
         }
     }
 
-    // void deleteFoodSource(FoodSource* fs) {
-    //     foodSources.erase(
-    //         std::remove_if(foodSources.begin(), foodSources.end(),
-    //             [&](const std::unique_ptr<FoodSource>& f) {
-    //                 return f.get() == fs;
-    //             }),
-    //             foodSources.end());
-    // }
-
     void deleteDepleetedFoodSources() {
         // remove food sources with energy <= 0
         foodSources.erase(
@@ -671,34 +581,6 @@ struct World {
         }
 
         deleteDepleetedFoodSources();
-
-        // for (auto& junc : junctions) {
-
-        //     if (junc->isTouchingFoodSource()) {
-        //         if (junc->energy == MAX_JUNCTION_ENERGY)
-        //             continue;
-
-        //         FoodSource* fs = junc->foodSource; // keep the pointer
-
-        //         fs->energy -= FOOD_ENERGY_ABSORB_RATE;
-        //         food_consumed += FOOD_ENERGY_ABSORB_RATE;
-                
-        //         if (fs->energy <= 0) {
-        //             // clear all references BEFORE deleting from vector
-        //             for (auto& j : junctions) {
-        //                 if (j->foodSource == fs)
-        //                 j->foodSource = nullptr;
-        //             }
-        //             deleteFoodSource(fs);
-        //         }
-                
-        //         junc->energy += FOOD_ENERGY_ABSORB_RATE;
-                
-        //         if (junc-> energy > MAX_JUNCTION_ENERGY) {
-        //             junc->energy = MAX_JUNCTION_ENERGY;
-        //         }
-        //     }
-        // }
     }
 
     void updateFitness() {
@@ -706,18 +588,6 @@ struct World {
     }
 
     void calculateFitness() {
-        
-        // total food energy consumed;
-        // fitness = food_consumed;
-
-
-        // total cell energy fitness
-
-        // double totalEnergy = 0.0;
-        // for (const auto& junc : junctions) {
-        //     totalEnergy += junc->energy;
-        // }
-        // fitness = totalEnergy;
 
         // number of food sources discovered fitness
         fitness = 0.0;
@@ -729,15 +599,5 @@ struct World {
                 }
             }
         }
-
-        // energy centrality-based fitness
-
-        // double centralityScore = 0.0;
-        // for (const auto& junc : junctions) {
-        //     double distToCenter = sqrt(junc->x * junc->x + junc->y * junc->y);
-        //     double centrality = 1.0 / (1.0 + distToCenter);
-        //     centralityScore += junc->energy * centrality;
-        // }
-        // fitness = centralityScore;
     }
 };

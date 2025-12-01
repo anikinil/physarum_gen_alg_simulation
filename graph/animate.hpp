@@ -8,17 +8,18 @@ using namespace std;
 
 #include "gen_alg.hpp"
 
-const int WIN_WIDTH = 2000;
-const int WIN_HEIGHT = 1500;
+const int WIN_WIDTH = 2500;
+const int WIN_HEIGHT = 2000;
 
 const double JUNCTION_RADIUS_FACTOR = 3.0;
 
-const float MIN_TUBE_THICKNESS = 0.5f;
-const double TUBE_THICKNESS_FACTOR = 2.0;
+const float MIN_TUBE_THICKNESS = 2.0f;
+const double TUBE_THICKNESS_FACTOR = 5.0;
 
 const float FPS = 20.0f;
 const float DEFAULT_ZOOM = 0.2f;
 
+const float LINE_THICKNESS = 2.0f;
 
 const int OBJECT_TRANSPARENCY = 90;
 
@@ -27,7 +28,7 @@ const sf::Color JUNCTION_COLOR(220, 160, 30);
 const sf::Color DEPLETED_JUNCTION_COLOR(180, 140, 20);
 const sf::Color TUBE_COLOR = JUNCTION_COLOR;
 // const sf::Color FOOD_SOURCE_COLOR(153, 191, 63, OBJECT_TRANSPARENCY);
-const sf::Color FOOD_SOURCE_COLOR(203, 71, 68, OBJECT_TRANSPARENCY);
+const sf::Color FOOD_SOURCE_COLOR(240, 50, 90, OBJECT_TRANSPARENCY);
 const sf::Color FOOD_SOURCE_CAPACITY_COLOR(255, 255, 255, OBJECT_TRANSPARENCY);
 
 const float TUBE_THICKNESS = 2.0f;

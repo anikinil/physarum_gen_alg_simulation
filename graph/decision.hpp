@@ -47,12 +47,9 @@ struct GrowthDecisionNet {
         }
         
         vector<double> pred = net.predict(input);
-        // cout << "GrowthDecisionNet prediction: " << pred[0] << ", " << pred[1] << ", " << pred[2] << pred[3] << endl;
         growthProbability = pred[0];
         growthAngle = pred[1] * 2.0 * M_PI;
         angleVariance = pred[2] * M_PI;
-        // if (static_cast<int>(pred[3] * NUM_SIGNAL_TYPES) == 0)
-        //     cout << "Signal raw: " << pred[3] << ", scaled: " << pred[3] * NUM_SIGNAL_TYPES << " casted: " << static_cast<int>(pred[3] * NUM_SIGNAL_TYPES) << endl;
         signal = min(static_cast<int>(pred[3] * NUM_SIGNAL_TYPES), NUM_SIGNAL_TYPES - 1);
     }
 };
@@ -85,7 +82,6 @@ struct FlowDecisionNet {
         };
 
         vector<double> pred = net.predict(input);
-        // cout << "FlowDecisionNet prediction: " << pred[0] << ", " << pred[1] << endl;
         increaseFlowProb = pred[0];
         decreaseFlowProb = pred[1];
     }

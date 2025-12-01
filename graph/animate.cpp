@@ -63,7 +63,7 @@ void drawFoodSources(sf::RenderWindow& window, const vector<FoodSourceVisual>& f
         sf::CircleShape capacity(10.0 * sqrt(food.energy/3.14));
         capacity.setFillColor(sf::Color::Transparent);
         capacity.setOutlineColor(FOOD_SOURCE_CAPACITY_COLOR);
-        capacity.setOutlineThickness(0.5);
+        capacity.setOutlineThickness(LINE_THICKNESS);
         capacity.setPosition(WIN_WIDTH/2 + food.x - capacity.getRadius(), WIN_HEIGHT/2 + food.y - capacity.getRadius());
         window.draw(area);
         window.draw(capacity);
@@ -102,18 +102,6 @@ void drawTubes(sf::RenderWindow& window, const vector<TubeVisual>& tubes) {
     }
 }
 
-// vector<unique_ptr<FoodSource>> createRandomizedFoodSources() {
-//     vector<unique_ptr<FoodSource>> foodSources;
-//     for (int i = 0; i < NUM_FOOD_SOURCES-1; ++i) {
-//         double x = Random::uniform(-300.0, 300.0);
-//         double y = Random::uniform(-300.0, 300.0);
-//         double energy = Random::uniform(500.0, 1000.0);
-//         double radius = sqrt(energy/3.14); // area proportional to energy
-//         foodSources.push_back(make_unique<FoodSource>(FoodSource{x, y, radius, energy}));
-//     }
-//     return foodSources;
-// }
-
 void drawLoadingScreen(sf::RenderWindow& window, const sf::Font& font) {
     sf::RectangleShape overlay(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));
     overlay.setFillColor(sf::Color(0, 0, 0, 100));
@@ -131,7 +119,7 @@ void drawGrid(sf::RenderWindow& window) {
 
     // float normalThickness = .4f;
     float normalThickness = 0.0f;
-    float centerThickness = .8f;
+    float centerThickness = LINE_THICKNESS;
 
     // Vertical lines
     for (int x = WIN_WIDTH / 2 % gridSpacing; x < WIN_WIDTH; x += gridSpacing) {
@@ -178,6 +166,7 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         gen = std::stoi(argv[1]);
     }
+
 
     World world = readWorld(gen);
     world.run(NUM_STEPS, true);
@@ -256,9 +245,6 @@ int main(int argc, char* argv[]) {
         }
 
         window.setView(view);
-
-        // double totalEnergy = accumulate(frames[currentFrame].junctions.begin(), frames[currentFrame].junctions.end(), 0.0,
-        // [](double sum, const JunctionVisual& j) { return sum + j.energy; });
 
         window.setTitle("Fitness: " + std::to_string(frames[currentFrame].fitness) + 
             " | Junctions: " + std::to_string(frames[currentFrame].junctions.size()) +
