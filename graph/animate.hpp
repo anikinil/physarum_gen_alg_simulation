@@ -14,18 +14,18 @@ const int WIN_HEIGHT = 1500;
 const double JUNCTION_RADIUS_FACTOR = 3.0;
 
 const float MIN_TUBE_THICKNESS = 0.5f;
-const int TUBE_THICKNESS_FACTOR = 1;
+const double TUBE_THICKNESS_FACTOR = 2.0;
 
-const float FPS = 40.0f;
+const float FPS = 20.0f;
 const float DEFAULT_ZOOM = 0.2f;
 
 
 const int OBJECT_TRANSPARENCY = 90;
 
 const sf::Color BACKGROUND_COLOR(28, 43, 52);
-const sf::Color JUNCTION_COLOR(255, 200, 40);
+const sf::Color JUNCTION_COLOR(220, 160, 30);
 const sf::Color DEPLETED_JUNCTION_COLOR(180, 140, 20);
-const sf::Color TUBE_COLOR(255, 200, 40);
+const sf::Color TUBE_COLOR = JUNCTION_COLOR;
 // const sf::Color FOOD_SOURCE_COLOR(153, 191, 63, OBJECT_TRANSPARENCY);
 const sf::Color FOOD_SOURCE_COLOR(203, 71, 68, OBJECT_TRANSPARENCY);
 const sf::Color FOOD_SOURCE_CAPACITY_COLOR(255, 255, 255, OBJECT_TRANSPARENCY);

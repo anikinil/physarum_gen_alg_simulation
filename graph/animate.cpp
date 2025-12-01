@@ -267,8 +267,8 @@ int main(int argc, char* argv[]) {
 
         drawGrid(window);
         drawFoodSources(window, frames[currentFrame].foodSources);
-        drawJunctions(window, frames[currentFrame].junctions);
         drawTubes(window, frames[currentFrame].tubes);
+        drawJunctions(window, frames[currentFrame].junctions);
 
         // --- Hover detection ---
         sf::Vector2i pixel = sf::Mouse::getPosition(window);
@@ -285,6 +285,18 @@ int main(int argc, char* argv[]) {
                 string("x = ") + to_string(f.x) +
                 " y = " + to_string(f.y) +
                 "\nenergy = " + to_string(f.energy);
+            }
+        }
+        
+        // Tube info
+        for (auto& t : frames[currentFrame].tubes) {
+            sf::Vector2f p1(WIN_WIDTH/2 + t.x1, WIN_HEIGHT/2 + t.y1);
+            sf::Vector2f p2(WIN_WIDTH/2 + t.x2, WIN_HEIGHT/2 + t.y2);
+            float thickness = 1.f + TUBE_THICKNESS * t.flowRate;
+            if (distToSegment(mouse, p1, p2) <= thickness*0.5f) {
+                hoverText = "Tube\nflow=" + to_string(t.flowRate) +
+                "\n(x1,y1)=" + to_string(t.x1) + "," + to_string(t.y1) +
+                "\n(x2,y2)=" + to_string(t.x2) + "," + to_string(t.y2);
             }
         }
 
@@ -306,18 +318,6 @@ int main(int argc, char* argv[]) {
                     if (i < j.signalHistory.size() - 1) hoverText += ", ";
                 }
                 hoverText += "]";
-            }
-        }
-
-        // Tube info
-        for (auto& t : frames[currentFrame].tubes) {
-            sf::Vector2f p1(WIN_WIDTH/2 + t.x1, WIN_HEIGHT/2 + t.y1);
-            sf::Vector2f p2(WIN_WIDTH/2 + t.x2, WIN_HEIGHT/2 + t.y2);
-            float thickness = 1.f + TUBE_THICKNESS * t.flowRate;
-            if (distToSegment(mouse, p1, p2) <= thickness*0.5f) {
-                hoverText = "Tube\nflow=" + to_string(t.flowRate) +
-                "\n(x1,y1)=" + to_string(t.x1) + "," + to_string(t.y1) +
-                "\n(x2,y2)=" + to_string(t.x2) + "," + to_string(t.y2);
             }
         }
 

@@ -13,23 +13,24 @@ using namespace std;
 
 #include "decision.hpp"
 
-
-const double GROWTH_COST = 1.5;
+const double GROWTH_COST = 0.0;
 const double DEFAULT_JUNCTION_ENERGY = 1.0;
-const double MIN_GROWTH_ENERGY = (DEFAULT_JUNCTION_ENERGY + GROWTH_COST);
-const double PASSIVE_ENERGY_LOSS = 0.01;
-
+const double MAX_JUNCTION_ENERGY = 10.0;
+const double MIN_JUNCTION_ENERGY = 0.0; // 0.01
 const int MAX_TUBES_PER_JUNCTION = 4;
-const double DEFAULT_FLOW_RATE = 0.4;
-const double FLOW_RATE_CHANGE_STEP = 0.05;
-const double TUBE_LENGTH = 20.0;
+const double TUBE_LENGTH = 10.0;
+const double FOOD_ENERGY_ABSORB_RATE = 2.0;
 
-const double MAX_JUNCTION_ENERGY = 20.0;
-const double MAX_TUBE_FLOW_RATE = 2.0;
+const double PASSIVE_ENERGY_LOSS = 0.0 * MAX_JUNCTION_ENERGY;
+const double MIN_GROWTH_ENERGY = 1.0 * (DEFAULT_JUNCTION_ENERGY + GROWTH_COST);
+const double DEFAULT_FLOW_RATE = 0.1 * MIN_GROWTH_ENERGY;
+const double FLOW_RATE_CHANGE_STEP = 0.01 * MAX_JUNCTION_ENERGY;
+const double MAX_TUBE_FLOW_RATE = 0.3 * MAX_JUNCTION_ENERGY;
+const double MIN_TUBE_FLOW_RATE = 0.01 * MAX_JUNCTION_ENERGY;
 
-const double FOOD_ENERGY_ABSORB_RATE = 0.1;
 
-const double MIN_GROWTH_ANGLE_VARIANCE = 0.3;
+const double MIN_GROWTH_ANGLE_VARIANCE = 0.05 * M_PI * 2;
+const double MIN_GROWTH_ANGLE = 0.0 * M_PI * 2;
 
 struct Junction;
 struct Tube;
@@ -276,7 +277,6 @@ struct World {
                 origTo
             });
 
-            
             // Update junction lists: replace references to existing tube with the new segments where appropriate.
             
             auto replaceAll = [&](Junction* j, Tube* oldT, Tube* newT) {
@@ -289,7 +289,6 @@ struct World {
             // replace in origFrom and origTo junctions
             replaceAll(origFrom, existing, segA.get());
             replaceAll(origTo, existing, segB.get());
-
 
             // remove the original existing tube from the world's tubes vector
             tubes.erase(std::remove_if(tubes.begin(), tubes.end(), [&](const std::unique_ptr<Tube>& t) { return t.get() == existing; }),
@@ -305,8 +304,7 @@ struct World {
         from.energy -= DEFAULT_JUNCTION_ENERGY; // energy passed to new junction
         from.energy -= GROWTH_COST; // cost of growing
 
-        // prevent noise
-        if (from.energy < 1e-6) from.energy = 0.0;    
+        from.energy = max(from.energy, MIN_JUNCTION_ENERGY);
     }
 
     // Axis-aligned bounding box overlap check
@@ -455,64 +453,64 @@ struct World {
         updateFitness();
     }
 
-    void removeDeadJunctionsAndTubes() {
-        // 1. Collect pointers to dead junctions
-        std::vector<Junction*> dead;
-        for (auto& j : junctions)
-        if (j->energy <= 0) {
-            dead.push_back(j.get());
-        }
+    // void removeDeadJunctionsAndTubes() {
+    //     // 1. Collect pointers to dead junctions
+    //     std::vector<Junction*> dead;
+    //     for (auto& j : junctions)
+    //     if (j->energy <= 0) {
+    //         dead.push_back(j.get());
+    //     }
         
-        // 2. Remove tubes connected to dead junctions
-        tubes.erase(
-            std::remove_if(tubes.begin(), tubes.end(),
-                [&](const std::unique_ptr<Tube>& t) {
-                    return std::find(dead.begin(), dead.end(), t->fromJunction) != dead.end() ||
-                        std::find(dead.begin(), dead.end(), t->toJunction) != dead.end();
-                    }),
-                    tubes.end());
+    //     // 2. Remove tubes connected to dead junctions
+    //     tubes.erase(
+    //         std::remove_if(tubes.begin(), tubes.end(),
+    //             [&](const std::unique_ptr<Tube>& t) {
+    //                 return std::find(dead.begin(), dead.end(), t->fromJunction) != dead.end() ||
+    //                     std::find(dead.begin(), dead.end(), t->toJunction) != dead.end();
+    //                 }),
+    //                 tubes.end());
 
-        // 3. Remove the dead junctions themselves
-        junctions.erase(
-            std::remove_if(junctions.begin(), junctions.end(),
-                [](const std::unique_ptr<Junction>& j) {
-                    return j->energy <= 0;
-                }),
-                junctions.end());
-    }
+    //     // 3. Remove the dead junctions themselves
+    //     junctions.erase(
+    //         std::remove_if(junctions.begin(), junctions.end(),
+    //             [](const std::unique_ptr<Junction>& j) {
+    //                 return j->energy <= 0;
+    //             }),
+    //             junctions.end());
+    // }
 
     void updateJunctions() {
 
-        removeDeadJunctionsAndTubes();
+        // removeDeadJunctionsAndTubes();
 
         // remove any dangling TubeInfo references from junctions
-        auto tubeExists = [&](Tube* t) {
-            if (!t) return false;
-            for (const auto& ut : tubes) {
-                if (ut.get() == t) return true;
-            }
-            return false;
-        };
+        // auto tubeExists = [&](Tube* t) {
+        //     if (!t) return false;
+        //     for (const auto& ut : tubes) {
+        //         if (ut.get() == t) return true;
+        //     }
+        //     return false;
+        // };
 
-        for (auto& j : junctions) {
-            auto& in = j->inTubes;
-            in.erase(std::remove_if(in.begin(), in.end(),
-                        [&](const Junction::TubeInfo& ti) { return !tubeExists(ti.tube); }),
-                     in.end());
-            auto& out = j->outTubes;
-            out.erase(std::remove_if(out.begin(), out.end(),
-                        [&](const Junction::TubeInfo& ti) { return !tubeExists(ti.tube); }),
-                      out.end());
-        }
+        // for (auto& j : junctions) {
+        //     auto& in = j->inTubes;
+        //     in.erase(std::remove_if(in.begin(), in.end(),
+        //                 [&](const Junction::TubeInfo& ti) { return !tubeExists(ti.tube); }),
+        //              in.end());
+        //     auto& out = j->outTubes;
+        //     out.erase(std::remove_if(out.begin(), out.end(),
+        //                 [&](const Junction::TubeInfo& ti) { return !tubeExists(ti.tube); }),
+        //               out.end());
+        // }
 
         size_t existingCount = junctions.size();
         // cout << "Existing count" << existingCount << endl;
 
         for (size_t i = 0; i < existingCount; ++i) {
 
-            if (i >= junctions.size()) break;
+            // if (i >= junctions.size()) break;
             Junction* junc = junctions[i].get();
-            if (!junc) continue;
+            // if (!junc) continue;
 
             // handle energy movement
 
@@ -534,24 +532,24 @@ struct World {
             //     }
             // }
             // outgoing tubes
+            if (junc->energy <= MIN_JUNCTION_ENERGY) continue; // depleted junctions can't send energy or grow
             for (auto& outTubeInfo : junc->outTubes) {
                 Tube* tube = outTubeInfo.tube;
-                if (!tube || !tube->toJunction) continue; // guard against dangling pointers
+
                 double energyAmount = junc->energy * tube->flowRate;
                 // if (energyAmount > junc->energy) {
                 //     energyAmount = junc->energy; // limit flow by available energy
                 // }
+
+
                 junc->energy -= energyAmount;
                 tube->toJunction->energy += energyAmount;
                 tube->toJunction->saveSignal(junc->signal);
                 // cout << "Junction " << tube->toJunction->x << ", " << tube->toJunction->y << " saved signal " << junc->signal << " from outgoing tube." << endl;
 
-                if (tube->toJunction->energy > MAX_JUNCTION_ENERGY) {
-                    tube->toJunction->energy = MAX_JUNCTION_ENERGY; // cap junction energy -> junction looses excess energy 
-                }
+                tube->toJunction->energy = min(tube->toJunction->energy, MAX_JUNCTION_ENERGY);
+                junc->energy = max(junc->energy, MIN_JUNCTION_ENERGY);
             }
-
-            if (junc->energy < 1e-6) continue; // depleted junctions can't grow
 
             // handle growth decision
 
@@ -581,15 +579,15 @@ struct World {
                     growthDecisionNet.growthAngle +
                     Random::uniform(-variance, variance);
                 
-                growTubeFrom(*junc, angle);
+                growTubeFrom(*junc, max(MIN_GROWTH_ANGLE, angle));
             }
 
             junc->signal = growthDecisionNet.signal;
 
-            // passive energy loss
-            junc->energy *= 1 - PASSIVE_ENERGY_LOSS;
-            // junc->energy -= PASSIVE_ENERGY_LOSS/junc->energy;
-            if (junc->energy < 1e-6) junc->energy = 0.0;
+            // junc->energy -= PASSIVE_ENERGY_LOSS / junc->energy;
+            junc->energy -= PASSIVE_ENERGY_LOSS;
+
+            junc->energy = max(junc->energy, MIN_JUNCTION_ENERGY);
         }        
     }
     
@@ -610,9 +608,7 @@ struct World {
             // adjust flow rate based on decision net
             if (Random::uniform() < flowDecisionNet.increaseFlowProb) {
                 tube->flowRate += FLOW_RATE_CHANGE_STEP;
-                if (tube->flowRate > MAX_TUBE_FLOW_RATE) {
-                    tube->flowRate = MAX_TUBE_FLOW_RATE; // cap flow rate
-                }
+                tube->flowRate = min(tube->flowRate, MAX_TUBE_FLOW_RATE);
             }
             if (Random::uniform() < flowDecisionNet.decreaseFlowProb && tube->flowRate > 0) {
                 tube->flowRate -= FLOW_RATE_CHANGE_STEP;
@@ -625,8 +621,8 @@ struct World {
                 tube->fromJunction->switchTubeDirection(*tube);
                 tube->toJunction->switchTubeDirection(*tube);
             }
-            
-            if (tube->flowRate < 1e-6) tube->flowRate = 0.0;
+            tube->flowRate = min(tube->flowRate, tube->fromJunction->energy); // limit by available energy    
+            tube->flowRate = max(tube->flowRate, MIN_TUBE_FLOW_RATE);
         }
     }
 
@@ -654,7 +650,6 @@ struct World {
         for (auto& foodSource : foodSources) {
             
             for (auto& junc : junctions) {
-                
 
                 if (junc->foodSource == foodSource.get()) {
                     if (junc->energy == MAX_JUNCTION_ENERGY)
@@ -668,11 +663,7 @@ struct World {
                     
                     junc->energy += FOOD_ENERGY_ABSORB_RATE;
 
-                    
-                    if (junc-> energy > MAX_JUNCTION_ENERGY) {
-                        junc->energy = MAX_JUNCTION_ENERGY;
-                    }
-
+                    junc->energy = min(junc->energy, MAX_JUNCTION_ENERGY);
                     // only one junction can feed on foodsource -> go to next food source
                     break;
                 }
@@ -722,11 +713,22 @@ struct World {
 
         // total cell energy fitness
 
-        double totalEnergy = 0.0;
-        for (const auto& junc : junctions) {
-            totalEnergy += junc->energy;
+        // double totalEnergy = 0.0;
+        // for (const auto& junc : junctions) {
+        //     totalEnergy += junc->energy;
+        // }
+        // fitness = totalEnergy;
+
+        // number of food sources discovered fitness
+        fitness = 0.0;
+        for (const auto& fs : foodSources) {
+            for (const auto& junc : junctions) {
+                if (junc->foodSource == fs.get()) {
+                    fitness += 1.0;
+                    break;
+                }
+            }
         }
-        fitness = totalEnergy;
 
         // energy centrality-based fitness
 
